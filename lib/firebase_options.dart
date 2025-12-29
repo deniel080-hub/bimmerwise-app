@@ -70,6 +70,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '305192442938',
     projectId: 'bimmerwise-9c7bd',
     storageBucket: 'bimmerwise-9c7bd.firebasestorage.app',
-    iosBundleId: 'com.mycompany.CounterApp',
+    iosBundleId: 'com.bimmerwise.app',
   );
 }
