@@ -37,31 +37,43 @@ void main() async {
       
       // Configure Firestore for better performance on all devices (especially Samsung)
       if (!kIsWeb) {
-        FirebaseFirestore.instance.settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-        );
-        debugPrint('✅ Firestore persistence enabled with unlimited cache');
+        try {
+          FirebaseFirestore.instance.settings = const Settings(
+            persistenceEnabled: true,
+            cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+          );
+          debugPrint('✅ Firestore persistence enabled with unlimited cache');
+        } catch (e) {
+          debugPrint('⚠️ Error configuring Firestore settings: $e');
+        }
       }
       
-      // Set up background message handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      // Set up background message handler - with error handling for Samsung
+      try {
+        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      } catch (e) {
+        debugPrint('⚠️ Error setting up background message handler: $e');
+      }
       
-      // Initialize FCM Service with longer timeout for Samsung devices
-      await FCMService().initialize().timeout(
-        const Duration(seconds: 15),
-        onTimeout: () {
-          debugPrint('⚠️ FCM initialization timeout - continuing anyway');
-        },
+      // Initialize FCM Service in the background - COMPLETELY NON-BLOCKING for Samsung S24
+      // Don't await this - let it happen in the background
+      unawaited(
+        FCMService().initialize().timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            debugPrint('⚠️ FCM initialization timeout - continuing anyway (Samsung S24)');
+          },
+        ).catchError((e, stackTrace) {
+          debugPrint('⚠️ FCM initialization error (Samsung S24): $e');
+          debugPrint('   Stack trace: ${stackTrace.toString().split('\n').take(2).join('\n')}');
+          // Never block app startup for FCM issues
+        }, test: (_) => true),
       );
     } catch (e, stackTrace) {
-      debugPrint('❌ Firebase initialization error: $e');
+      debugPrint('❌ Firebase initialization error (Samsung S24): $e');
       debugPrint('❌ Stack trace: $stackTrace');
       debugPrint('⚠️ App will continue but Firebase features may not work');
     }
-    
-    // Add a small delay to ensure all initialization completes
-    await Future.delayed(const Duration(milliseconds: 500));
     
     // Initialize the app
     runApp(const MyApp());
