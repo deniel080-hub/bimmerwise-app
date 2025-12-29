@@ -8,6 +8,7 @@ class ServiceRecordService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Get all service records (admin only)
+  /// Enhanced with error handling for Samsung devices
   Future<List<ServiceRecord>> getAllRecords() async {
     try {
       final snapshot = await _firestore
@@ -16,9 +17,22 @@ class ServiceRecordService {
           .limit(100)
           .get();
       
-      return snapshot.docs.map((doc) => ServiceRecord.fromJson(doc.data())).toList();
+      // Process each document with individual error handling to skip corrupted data
+      final records = <ServiceRecord>[];
+      for (var doc in snapshot.docs) {
+        try {
+          records.add(ServiceRecord.fromJson(doc.data()));
+        } catch (e) {
+          debugPrint('⚠️ Skipping corrupted service record ${doc.id}: $e');
+          // Continue processing other records instead of crashing
+        }
+      }
+      
+      return records;
     } catch (e) {
-      debugPrint('Error getting all service records: $e');
+      debugPrint('❌ Error getting all service records: $e');
+      debugPrint('   This might be due to missing Firestore index. Creating index...');
+      // Return empty list instead of crashing - app will continue to work
       return [];
     }
   }
@@ -92,13 +106,33 @@ class ServiceRecordService {
   }
 
   /// Stream of service records for a vehicle
+  /// Enhanced with error handling to prevent crashes from corrupted data on Samsung devices
   Stream<List<ServiceRecord>> getRecordsByVehicleIdStream(String vehicleId) {
     return _firestore
         .collection('service_records')
         .where('vehicleId', isEqualTo: vehicleId)
         .orderBy('serviceDate', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => ServiceRecord.fromJson(doc.data())).toList());
+        .handleError((error, stackTrace) {
+          debugPrint('❌ Error in service records stream: $error');
+          debugPrint('❌ Stack trace: $stackTrace');
+          // Return empty stream on error to prevent crash
+        })
+        .map((snapshot) {
+          final records = <ServiceRecord>[];
+          
+          // Process each document with individual error handling to skip corrupted data
+          for (var doc in snapshot.docs) {
+            try {
+              records.add(ServiceRecord.fromJson(doc.data()));
+            } catch (e) {
+              debugPrint('⚠️ Skipping corrupted service record ${doc.id}: $e');
+              // Continue processing other records instead of crashing
+            }
+          }
+          
+          return records;
+        });
   }
 
   /// Get service record by ID

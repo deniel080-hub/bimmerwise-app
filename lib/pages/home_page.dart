@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,7 @@ import 'package:bimmerwise_connect/services/notification_service.dart';
 import 'package:bimmerwise_connect/services/fcm_service.dart';
 import 'package:bimmerwise_connect/services/cart_service.dart';
 import 'package:bimmerwise_connect/models/user_model.dart';
+import 'package:bimmerwise_connect/models/vehicle_model.dart';
 import 'package:bimmerwise_connect/models/service_record_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -40,6 +42,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   int _unconfirmedBookingsCount = 0;
   bool _showExpandedProgress = false;
   List<AppNotification> _adminBookingNotifications = [];
+  
+  // Stream subscriptions - CRITICAL for preventing memory leaks on Samsung devices
+  StreamSubscription<List<AppNotification>>? _notificationStreamSubscription;
+  StreamSubscription<List<AppNotification>>? _adminNotificationStreamSubscription;
 
   @override
   void initState() {
@@ -119,6 +125,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    
+    // CRITICAL: Cancel stream subscriptions to prevent memory leaks on Samsung devices
+    _notificationStreamSubscription?.cancel();
+    _adminNotificationStreamSubscription?.cancel();
+    debugPrint('✅ Cancelled notification streams on dispose');
+    
     try {
       _progressAnimationController.dispose();
       _progressValueController.dispose();
@@ -140,7 +152,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
       
       if (currentUser != null) {
         final userService = UserService();
-        final user = await userService.getUserById(currentUser.uid);
+        // Add timeout for getUserById - critical for Samsung devices
+        final user = await userService.getUserById(currentUser.uid).timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            debugPrint('⚠️ Timeout loading user data on Samsung device');
+            return null;
+          },
+        );
         debugPrint('👤 User loaded from Firestore: ${user?.email} (isAdmin: ${user?.isAdmin})');
         
         if (!mounted) return;
@@ -148,6 +167,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
         
         if (user != null) {
           // Load data in parallel with individual error handling to prevent one failure from blocking others
+          // Add overall timeout for the entire data loading to prevent indefinite hangs
           await Future.wait([
             _loadActiveService(user.id).catchError((e) {
               debugPrint('⚠️ Error loading active service: $e');
@@ -171,17 +191,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                 return null;
               }),
             ],
-          ]);
+          ]).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              debugPrint('⚠️ Overall timeout loading home page data on Samsung device');
+              // Continue anyway - some data may have loaded
+              return [];
+            },
+          );
           
           // Save FCM token separately with timeout - don't block on this
-          FCMService().saveTokenToUser(user.id).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              debugPrint('⚠️ FCM token save timeout - will retry later');
-            },
-          ).catchError((e) {
-            debugPrint('⚠️ Error saving FCM token: $e');
-          });
+          unawaited(
+            FCMService().saveTokenToUser(user.id).timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                debugPrint('⚠️ FCM token save timeout - will retry later');
+              },
+            ).catchError((e) {
+              debugPrint('⚠️ Error saving FCM token: $e');
+            }),
+          );
         }
       } else {
         debugPrint('❌ No current user found');
@@ -207,80 +236,165 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
 
   /// Load unread notifications with real-time stream
   /// This ensures notifications update instantly without app refresh
+  /// CRITICAL: Properly manages stream subscription to prevent memory leaks on Samsung devices
   Future<void> _loadUnreadNotifications(String userId) async {
+    if (!mounted) return;
+    
+    // Cancel existing subscription to prevent memory leaks
+    await _notificationStreamSubscription?.cancel();
+    _notificationStreamSubscription = null;
+    
     try {
       final notificationService = NotificationService();
       
-      // Set up real-time stream for instant notification updates
-      notificationService.streamNotificationsByUserId(userId).listen((notifications) {
-        if (mounted) {
-          final unreadCount = notifications.where((n) => !n.isRead).length;
-          setState(() => _unreadNotificationCount = unreadCount);
-          debugPrint('📬 Real-time update: $unreadCount unread notifications');
-        }
-      }, onError: (e) {
-        debugPrint('❌ Error in notification stream: $e');
-      });
+      // Set up real-time stream for instant notification updates with error handling
+      // CRITICAL: Store subscription so it can be cancelled in dispose()
+      _notificationStreamSubscription = notificationService.streamNotificationsByUserId(userId).listen(
+        (notifications) {
+          if (mounted) {
+            try {
+              final unreadCount = notifications.where((n) => !n.isRead).length;
+              setState(() => _unreadNotificationCount = unreadCount);
+              debugPrint('📬 Real-time update: $unreadCount unread notifications');
+            } catch (e) {
+              debugPrint('❌ Error processing notifications: $e');
+            }
+          }
+        },
+        onError: (e, stackTrace) {
+          debugPrint('❌ Error in notification stream: $e');
+          debugPrint('❌ Stack trace: $stackTrace');
+          // Don't crash - just reset count and continue
+          if (mounted) {
+            setState(() => _unreadNotificationCount = 0);
+          }
+        },
+        cancelOnError: false, // Keep stream alive even after errors
+      );
       
-      // Also get initial count immediately
-      final unreadCount = await notificationService.getUnreadCount(userId);
+      // Also get initial count immediately with timeout
+      final unreadCount = await notificationService.getUnreadCount(userId).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading notification count on Samsung device');
+          return 0;
+        },
+      );
       if (mounted) {
         setState(() => _unreadNotificationCount = unreadCount);
       }
-    } catch (e) {
-      debugPrint('Error loading notifications: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error loading notifications: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() => _unreadNotificationCount = 0);
+      }
     }
   }
 
   Future<void> _loadCartItemCount(String userId) async {
+    if (!mounted) return;
     try {
       final cartService = CartService();
-      final count = await cartService.getCartItemCount(userId);
+      // Add timeout for Samsung devices
+      final count = await cartService.getCartItemCount(userId).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading cart count on Samsung device');
+          return 0;
+        },
+      );
       if (mounted) {
         setState(() => _cartItemCount = count);
       }
-    } catch (e) {
-      debugPrint('Error loading cart count: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error loading cart count: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() => _cartItemCount = 0);
+      }
     }
   }
 
   Future<void> _loadUnconfirmedBookingsCount() async {
+    if (!mounted) return;
     try {
       final serviceRecordService = ServiceRecordService();
-      final allRecords = await serviceRecordService.getAllRecords();
+      // Add timeout for Samsung devices - critical for admin users
+      final allRecords = await serviceRecordService.getAllRecords().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading all records on Samsung device (admin)');
+          return <ServiceRecord>[];
+        },
+      );
+      
+      if (!mounted) return;
       final unconfirmedCount = allRecords.where((r) => r.status == 'Booking In Progress').length;
       if (mounted) {
         setState(() => _unconfirmedBookingsCount = unconfirmedCount);
       }
       debugPrint('📊 Admin: $unconfirmedCount unconfirmed bookings found');
     } catch (e) {
-      debugPrint('Error loading unconfirmed bookings count: $e');
+      debugPrint('❌ Error loading unconfirmed bookings count: $e');
+      if (mounted) {
+        setState(() => _unconfirmedBookingsCount = 0);
+      }
     }
   }
 
   /// Load admin booking notifications with real-time stream
+  /// CRITICAL: Properly manages stream subscription to prevent memory leaks on Samsung devices
   Future<void> _loadAdminBookingNotifications(String userId) async {
+    if (!mounted) return;
+    
+    // Cancel existing subscription to prevent memory leaks
+    await _adminNotificationStreamSubscription?.cancel();
+    _adminNotificationStreamSubscription = null;
+    
     try {
       final notificationService = NotificationService();
       
-      // Set up real-time stream for instant admin notification updates
-      notificationService.streamNotificationsByUserId(userId).listen((notifications) {
-        if (mounted) {
-          final bookingNotifications = notifications.where((n) =>
-            n.type == NotificationType.bookingCreated ||
-            n.type == NotificationType.bookingModified ||
-            n.type == NotificationType.bookingCanceled
-          ).take(5).toList();
-          
-          setState(() => _adminBookingNotifications = bookingNotifications);
-          debugPrint('📬 Admin: ${bookingNotifications.length} booking notifications loaded (real-time)');
-        }
-      }, onError: (e) {
-        debugPrint('❌ Error in admin notification stream: $e');
-      });
+      // Set up real-time stream for instant admin notification updates with error handling
+      // CRITICAL: Store subscription so it can be cancelled in dispose()
+      _adminNotificationStreamSubscription = notificationService.streamNotificationsByUserId(userId).listen(
+        (notifications) {
+          if (mounted) {
+            try {
+              final bookingNotifications = notifications.where((n) =>
+                n.type == NotificationType.bookingCreated ||
+                n.type == NotificationType.bookingModified ||
+                n.type == NotificationType.bookingCanceled
+              ).take(5).toList();
+              
+              setState(() => _adminBookingNotifications = bookingNotifications);
+              debugPrint('📬 Admin: ${bookingNotifications.length} booking notifications loaded (real-time)');
+            } catch (e) {
+              debugPrint('❌ Error processing admin notifications: $e');
+            }
+          }
+        },
+        onError: (e, stackTrace) {
+          debugPrint('❌ Error in admin notification stream: $e');
+          debugPrint('❌ Stack trace: $stackTrace');
+          // Don't crash - just clear notifications and continue
+          if (mounted) {
+            setState(() => _adminBookingNotifications = []);
+          }
+        },
+        cancelOnError: false, // Keep stream alive even after errors
+      );
       
-      // Also get initial notifications immediately
-      final notifications = await notificationService.getNotificationsByUserId(userId);
+      // Also get initial notifications immediately with timeout
+      final notifications = await notificationService.getNotificationsByUserId(userId).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading admin notifications on Samsung device');
+          return <AppNotification>[];
+        },
+      );
+      
+      if (!mounted) return;
       final bookingNotifications = notifications.where((n) =>
         n.type == NotificationType.bookingCreated ||
         n.type == NotificationType.bookingModified ||
@@ -291,18 +405,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
         setState(() => _adminBookingNotifications = bookingNotifications);
       }
       debugPrint('📬 Admin: ${bookingNotifications.length} booking notifications loaded');
-    } catch (e) {
-      debugPrint('Error loading admin booking notifications: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error loading admin booking notifications: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() => _adminBookingNotifications = []);
+      }
     }
   }
 
   Future<void> _loadActiveService(String userId) async {
+    if (!mounted) return;
     try {
       final vehicleService = VehicleService();
       final serviceRecordService = ServiceRecordService();
       
-      // Get user's vehicles first
-      final userVehicles = await vehicleService.getVehiclesByUserId(userId);
+      // Get user's vehicles first with timeout
+      final userVehicles = await vehicleService.getVehiclesByUserId(userId).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading vehicles on Samsung device');
+          return <Vehicle>[];
+        },
+      );
       if (!mounted) return;
       
       if (userVehicles.isEmpty) {
@@ -326,8 +451,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
       // Get vehicle IDs
       final vehicleIds = userVehicles.map((v) => v.id).toSet();
       
-      // Get all service records and filter by user's vehicles
-      final allRecords = await serviceRecordService.getAllRecords();
+      // Get all service records and filter by user's vehicles with timeout
+      final allRecords = await serviceRecordService.getAllRecords().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading service records on Samsung device');
+          return <ServiceRecord>[];
+        },
+      );
       if (!mounted) return;
       
       final userRecords = allRecords.where((r) => vehicleIds.contains(r.vehicleId)).toList();

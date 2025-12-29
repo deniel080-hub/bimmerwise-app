@@ -111,44 +111,110 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
+    
     try {
       final userService = UserService();
       final vehicleService = VehicleService();
       final serviceRecordService = ServiceRecordService();
 
-      final users = await userService.getAllUsers();
+      // Add timeout for getting all users - critical for Samsung devices
+      debugPrint('📊 Loading users...');
+      final users = await userService.getAllUsers().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading users on Samsung device');
+          return <User>[];
+        },
+      );
+      debugPrint('📊 Loaded ${users.length} users');
+
       final Map<String, List<Vehicle>> vehicles = {};
       final Map<String, List<ServiceRecord>> records = {};
 
+      // Load data for each user with individual timeouts to prevent cascade failures
       for (var user in users) {
-        final userVehicles = await vehicleService.getVehiclesByUserId(user.id);
-        vehicles[user.id] = userVehicles;
+        if (!mounted) return; // Check if widget is still mounted
+        
+        try {
+          // Add timeout for vehicle loading
+          final userVehicles = await vehicleService.getVehiclesByUserId(user.id).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Timeout loading vehicles for user ${user.id}');
+              return <Vehicle>[];
+            },
+          );
+          vehicles[user.id] = userVehicles;
 
-        final List<ServiceRecord> userRecords = [];
-        for (var vehicle in userVehicles) {
-          final vehicleRecords = await serviceRecordService.getRecordsByVehicleId(vehicle.id);
-          userRecords.addAll(vehicleRecords);
+          final List<ServiceRecord> userRecords = [];
+          for (var vehicle in userVehicles) {
+            if (!mounted) return; // Check if widget is still mounted
+            
+            try {
+              // Add timeout for service record loading
+              final vehicleRecords = await serviceRecordService.getRecordsByVehicleId(vehicle.id).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () {
+                  debugPrint('⚠️ Timeout loading records for vehicle ${vehicle.id}');
+                  return <ServiceRecord>[];
+                },
+              );
+              userRecords.addAll(vehicleRecords);
+            } catch (e) {
+              debugPrint('❌ Error loading records for vehicle ${vehicle.id}: $e');
+              // Continue loading other records
+            }
+          }
+          records[user.id] = userRecords;
+        } catch (e) {
+          debugPrint('❌ Error loading data for user ${user.id}: $e');
+          // Initialize empty data for this user and continue
+          vehicles[user.id] = [];
+          records[user.id] = [];
         }
-        records[user.id] = userRecords;
       }
 
-      setState(() {
-        _users = users;
-        _userVehicles = vehicles;
-        _userServiceRecords = records;
-      });
+      if (mounted) {
+        setState(() {
+          _users = users;
+          _userVehicles = vehicles;
+          _userServiceRecords = records;
+        });
+        debugPrint('✅ Admin data loaded successfully');
+      }
 
       // Auto-show user details if highlightBookingId is provided
-      if (widget.highlightBookingId != null && widget.highlightBookingId!.isNotEmpty) {
+      if (mounted && widget.highlightBookingId != null && widget.highlightBookingId!.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showUserDetailsForBooking(widget.highlightBookingId!);
+          if (mounted) {
+            _showUserDetailsForBooking(widget.highlightBookingId!);
+          }
         });
       }
-    } catch (e) {
-      debugPrint('Error loading admin data: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Critical error loading admin data: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      
+      // Show error to user but don't crash
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Error loading data. Please try refreshing.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _loadData,
+            ),
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -170,96 +236,132 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   }
 
   Future<void> _updateServiceProgress(ServiceRecord record, String newStatus) async {
-    int newProgress;
-    switch (newStatus) {
-      case 'Booking In Progress':
-        newProgress = 0; // 0% - Booking pending admin confirmation
-        break;
-      case 'Booking Confirmed':
-        newProgress = 50; // 50% - Admin confirmed, service in progress
-        break;
-      case 'Completed':
-        newProgress = 100; // 100% - Service completed, ready for pickup
-        break;
-      case 'Booking Canceled':
-        newProgress = 0;
-        break;
-      default:
-        newProgress = record.progress;
-    }
-
-    String? mileage;
-    String? adminNotes;
-    List<String>? attachedImages;
+    if (!mounted) return;
     
-    // If completing service, ask for mileage, notes and allow image upload
-    if (newStatus == 'Completed') {
-      final result = await showDialog<Map<String, dynamic>>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => _ServiceCompletionDialog(
-          currentMileage: record.mileage ?? '',
-        ),
-      );
+    try {
+      int newProgress;
+      switch (newStatus) {
+        case 'Booking In Progress':
+          newProgress = 0; // 0% - Booking pending admin confirmation
+          break;
+        case 'Booking Confirmed':
+          newProgress = 50; // 50% - Admin confirmed, service in progress
+          break;
+        case 'Completed':
+          newProgress = 100; // 100% - Service completed, ready for pickup
+          break;
+        case 'Booking Canceled':
+          newProgress = 0;
+          break;
+        default:
+          newProgress = record.progress;
+      }
+
+      String? mileage;
+      String? adminNotes;
+      List<String>? attachedImages;
       
-      if (result == null) return; // User cancelled
-      mileage = result['mileage'] as String?;
-      adminNotes = result['notes'] as String?;
-      attachedImages = result['images'] as List<String>?;
-    }
+      // If completing service, ask for mileage, notes and allow image upload
+      if (newStatus == 'Completed') {
+        if (!mounted) return;
+        final result = await showDialog<Map<String, dynamic>>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _ServiceCompletionDialog(
+            currentMileage: record.mileage ?? '',
+          ),
+        );
+        
+        if (result == null) return; // User cancelled
+        mileage = result['mileage'] as String?;
+        adminNotes = result['notes'] as String?;
+        attachedImages = result['images'] as List<String>?;
+      }
 
-    final updatedRecord = record.copyWith(
-      status: newStatus,
-      progress: newProgress,
-      mileage: newStatus == 'Completed' ? mileage : record.mileage,
-      adminNotes: newStatus == 'Completed' ? adminNotes : record.adminNotes,
-      attachedImages: newStatus == 'Completed' ? attachedImages : record.attachedImages,
-      updatedAt: DateTime.now(),
-    );
-
-    await ServiceRecordService().updateRecord(updatedRecord);
-
-    // Get vehicle and user info for notifications
-    final vehicle = _userVehicles.values
-        .expand((v) => v)
-        .firstWhere((v) => v.id == record.vehicleId);
-    final user = _users.firstWhere((u) => u.id == vehicle.userId);
-
-    // Send appropriate notification based on status
-    if (newStatus == 'Completed') {
-      await NotificationService().sendServiceCompletionNotification(
-        userId: user.id,
-        userEmail: user.email,
-        serviceName: record.serviceType,
-        vehicleInfo: vehicle.model,
+      final updatedRecord = record.copyWith(
+        status: newStatus,
+        progress: newProgress,
+        mileage: newStatus == 'Completed' ? mileage : record.mileage,
+        adminNotes: newStatus == 'Completed' ? adminNotes : record.adminNotes,
+        attachedImages: newStatus == 'Completed' ? attachedImages : record.attachedImages,
+        updatedAt: DateTime.now(),
       );
-    } else if (newStatus == 'Booking Canceled') {
-      await NotificationService().sendAdminCanceledNotificationToUser(
-        userId: user.id,
-        userEmail: user.email,
-        serviceName: record.serviceType,
-        vehicleInfo: vehicle.model,
-      );
-    } else {
-      // For any other status change (Confirm, In Progress, etc.)
-      await NotificationService().sendAdminModifiedNotificationToUser(
-        userId: user.id,
-        userEmail: user.email,
-        serviceName: record.serviceType,
-        vehicleInfo: vehicle.model,
-        newStatus: newStatus,
-      );
-    }
 
-    await _loadData();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Service status updated to: $newStatus'),
-          backgroundColor: Colors.green,
-        ),
+      // Update record with timeout
+      await ServiceRecordService().updateRecord(updatedRecord).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout updating service record');
+          throw TimeoutException('Failed to update service record');
+        },
       );
+
+      // Get vehicle and user info for notifications with error handling
+      try {
+        final vehicle = _userVehicles.values
+            .expand((v) => v)
+            .firstWhere((v) => v.id == record.vehicleId);
+        final user = _users.firstWhere((u) => u.id == vehicle.userId);
+
+        // Send appropriate notification based on status - with timeout and error handling
+        try {
+          if (newStatus == 'Completed') {
+            await NotificationService().sendServiceCompletionNotification(
+              userId: user.id,
+              userEmail: user.email,
+              serviceName: record.serviceType,
+              vehicleInfo: vehicle.model,
+            ).timeout(const Duration(seconds: 10));
+          } else if (newStatus == 'Booking Canceled') {
+            await NotificationService().sendAdminCanceledNotificationToUser(
+              userId: user.id,
+              userEmail: user.email,
+              serviceName: record.serviceType,
+              vehicleInfo: vehicle.model,
+            ).timeout(const Duration(seconds: 10));
+          } else {
+            // For any other status change (Confirm, In Progress, etc.)
+            await NotificationService().sendAdminModifiedNotificationToUser(
+              userId: user.id,
+              userEmail: user.email,
+              serviceName: record.serviceType,
+              vehicleInfo: vehicle.model,
+              newStatus: newStatus,
+            ).timeout(const Duration(seconds: 10));
+          }
+        } catch (notifError) {
+          debugPrint('⚠️ Error sending notification (non-critical): $notifError');
+          // Don't block the update if notification fails
+        }
+      } catch (lookupError) {
+        debugPrint('⚠️ Error looking up user/vehicle info: $lookupError');
+        // Continue even if we can't send notifications
+      }
+
+      // Reload data with error handling
+      await _loadData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Service status updated to: $newStatus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error updating service status: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update service: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 

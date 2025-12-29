@@ -498,21 +498,41 @@ class NotificationService {
   }
 
   /// Stream notifications for real-time updates
+  /// Enhanced with error handling to prevent crashes from corrupted data on Samsung devices
   Stream<List<AppNotification>> streamNotificationsByUserId(String userId) {
     return _firestore
         .collection('notifications')
         .where('userId', isEqualTo: userId)
         .limit(100)
         .snapshots()
+        .handleError((error, stackTrace) {
+          debugPrint('❌ Error in notification stream: $error');
+          debugPrint('❌ Stack trace: $stackTrace');
+          // Return empty stream on error to prevent crash
+        })
         .map((snapshot) {
-      final notifications = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return AppNotification.fromJson(data);
-      }).toList();
+      final notifications = <AppNotification>[];
+      
+      // Process each document with individual error handling to skip corrupted data
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          data['id'] = doc.id;
+          final notification = AppNotification.fromJson(data);
+          notifications.add(notification);
+        } catch (e) {
+          debugPrint('⚠️ Skipping corrupted notification document ${doc.id}: $e');
+          // Continue processing other documents instead of crashing
+        }
+      }
       
       // Sort in memory instead of using Firestore orderBy
-      notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      try {
+        notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      } catch (e) {
+        debugPrint('⚠️ Error sorting notifications: $e');
+        // Continue with unsorted list instead of crashing
+      }
       
       return notifications;
     });

@@ -21,12 +21,13 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = "11"
     }
 
     signingConfigs {
@@ -81,4 +82,7 @@ flutter {
 dependencies {
     // Multidex support for apps with many dependencies
     implementation 'androidx.multidex:multidex:2.0.1'
+    
+    // Core library desugaring for Java 8+ API support
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 }
