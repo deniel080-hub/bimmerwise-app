@@ -36,102 +36,66 @@ void main() async {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     
-    // SAMSUNG CRASH RECOVERY: Track startup crashes to detect crash loops
+    // iOS-SAFE: Simple crash tracking without Firestore cache clearing
     SharedPreferences? prefs;
-    int crashCount = 0;
     try {
       prefs = await SharedPreferences.getInstance();
-      crashCount = prefs.getInt('startup_crash_count') ?? 0;
+      final crashCount = prefs.getInt('startup_crash_count') ?? 0;
       
-      // If app crashed 3+ times on startup, clear all problematic data
       if (crashCount >= 3) {
-        debugPrint('⚠️ Detected crash loop ($crashCount crashes), clearing corrupted data...');
-        
-        // Clear the crash counter
+        debugPrint('⚠️ Detected crash loop ($crashCount crashes), resetting counter...');
         await prefs.remove('startup_crash_count');
-        
-        // Clear Firestore cache (if possible)
-        try {
-          await FirebaseFirestore.instance.clearPersistence();
-          debugPrint('✅ Cleared Firestore cache');
-        } catch (e) {
-          debugPrint('⚠️ Could not clear Firestore cache: $e');
-        }
-        
-        crashCount = 0; // Reset after cleanup
       } else {
         // Increment crash counter - will be reset after successful startup
         await prefs.setInt('startup_crash_count', crashCount + 1);
       }
     } catch (e) {
-      debugPrint('⚠️ Could not access SharedPreferences for crash recovery: $e');
+      debugPrint('⚠️ Could not access SharedPreferences: $e');
     }
     
-    // Initialize Firebase with comprehensive error handling
+    // Initialize Firebase with iOS-safe error handling
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
       debugPrint('✅ Firebase initialized successfully');
       
-      // iOS-SAFE: Verify Firebase is properly configured
+      // Configure Firestore - SAMSUNG-SAFE with limited cache
       if (!kIsWeb) {
         try {
-          // Test Firestore connection
-          await FirebaseFirestore.instance
-              .collection('_health_check')
-              .doc('test')
-              .get()
-              .timeout(const Duration(seconds: 5));
-          debugPrint('✅ Firebase Firestore connection verified');
-        } catch (e) {
-          debugPrint('⚠️ Firebase connection check: $e');
-          debugPrint('⚠️ Ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured');
-        }
-      }
-      
-      // Configure Firestore - SAMSUNG-SAFE with limited cache to prevent corruption
-      if (!kIsWeb) {
-        try {
-          // Use LIMITED cache on mobile to prevent Samsung crash loops from corrupted cache
           FirebaseFirestore.instance.settings = const Settings(
             persistenceEnabled: true,
-            cacheSizeBytes: 100 * 1024 * 1024, // 100MB limit (was unlimited)
+            cacheSizeBytes: 100 * 1024 * 1024, // 100MB limit
           );
-          debugPrint('✅ Firestore persistence enabled with 100MB cache limit');
+          debugPrint('✅ Firestore persistence enabled');
         } catch (e) {
-          debugPrint('⚠️ Error configuring Firestore settings: $e');
+          debugPrint('⚠️ Firestore settings error: $e');
         }
       }
       
-      // Set up background message handler - SAMSUNG-SAFE with extra protection
+      // Set up background message handler
       try {
         FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
         debugPrint('✅ Background message handler registered');
-      } catch (e, stackTrace) {
-        debugPrint('⚠️ Error setting up background message handler: $e');
-        debugPrint('⚠️ Stack trace: $stackTrace');
-        // Don't rethrow - app continues without background messaging
+      } catch (e) {
+        debugPrint('⚠️ Background handler error: $e');
       }
       
-      // Initialize FCM Service in the background - SAMSUNG-SAFE (no local notifications)
-      // Don't await this - let it happen in the background
-      // Delayed start to prevent Samsung crash on app launch
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      // Initialize FCM Service - delayed start for stability
+      Future.delayed(const Duration(milliseconds: 2000), () {
         FCMService().initialize().timeout(
           const Duration(seconds: 10),
           onTimeout: () {
-            debugPrint('⚠️ FCM timeout (Samsung-safe mode)');
+            debugPrint('⚠️ FCM timeout');
           },
         ).catchError((e) {
-          debugPrint('⚠️ FCM error (Samsung-safe): $e');
-          // Never block app - Samsung devices continue without FCM
+          debugPrint('⚠️ FCM error: $e');
         }, test: (_) => true);
       });
     } catch (e, stackTrace) {
-      debugPrint('❌ Firebase initialization error (Samsung S24): $e');
-      debugPrint('❌ Stack trace: $stackTrace');
-      debugPrint('⚠️ App will continue but Firebase features may not work');
+      debugPrint('❌ Firebase initialization error: $e');
+      debugPrint('❌ Stack: $stackTrace');
+      debugPrint('⚠️ App continues without Firebase');
     }
     
     // SAMSUNG CRASH RECOVERY: Reset crash counter after successful initialization

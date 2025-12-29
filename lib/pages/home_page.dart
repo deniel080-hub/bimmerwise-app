@@ -451,17 +451,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
       // Get vehicle IDs
       final vehicleIds = userVehicles.map((v) => v.id).toSet();
       
-      // Get all service records and filter by user's vehicles with timeout
-      final allRecords = await serviceRecordService.getAllRecords().timeout(
-        const Duration(seconds: 15),
-        onTimeout: () {
-          debugPrint('⚠️ Timeout loading service records on Samsung device');
-          return <ServiceRecord>[];
-        },
-      );
+      // Get service records for user's vehicles with timeout
+      // For regular users: fetch records for each vehicle individually (respects Firestore permissions)
+      // For admins: this will also work since they have access to all records
+      List<ServiceRecord> userRecords = [];
+      for (final vehicleId in vehicleIds) {
+        try {
+          final records = await serviceRecordService.getRecordsByVehicleId(vehicleId).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Timeout loading service records for vehicle: $vehicleId');
+              return <ServiceRecord>[];
+            },
+          );
+          userRecords.addAll(records);
+        } catch (e) {
+          debugPrint('❌ Error loading service records for vehicle $vehicleId: $e');
+          // Continue with other vehicles instead of failing completely
+        }
+      }
       if (!mounted) return;
-      
-      final userRecords = allRecords.where((r) => vehicleIds.contains(r.vehicleId)).toList();
       
       if (userRecords.isNotEmpty) {
         // Filter: show only active services (not collected or canceled)
@@ -518,7 +527,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
             _targetProgress = displayProgress.toDouble();
           });
           
-          debugPrint('📊 Progress: ${activeRecords.length} bookings, avg: $avgProgress%, display: $displayProgress%');
+          debugPrint('📊 Progress: ${activeRecords.length} booking${activeRecords.length != 1 ? 's' : ''}, avg: $avgProgress%, display: $displayProgress%');
+          debugPrint('📊 Service details: ${latestService.serviceType}, Status: ${latestService.status}, Progress: ${latestService.progress}');
+          debugPrint('📊 Will display: ${activeRecords.length == 1 ? 'Single' : 'Multiple'} booking progress bar');
           _startProgressAnimation(displayProgress.toDouble());
         } else {
           if (mounted) {
@@ -730,13 +741,57 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
             if (notifications.isNotEmpty)
               TextButton(
                 onPressed: () async {
-                  await notificationService.clearNotificationsByUserId(_loggedInUser!.id);
-                  Navigator.of(context).pop();
-                  await _loadUnreadNotifications(_loggedInUser!.id);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('All notifications cleared')),
-                    );
+                  try {
+                    // Show loading indicator
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Clearing notifications...'),
+                            ],
+                          ),
+                          duration: Duration(seconds: 30),
+                        ),
+                      );
+                    }
+                    
+                    await notificationService.clearNotificationsByUserId(_loggedInUser!.id);
+                    Navigator.of(context).pop();
+                    await _loadUnreadNotifications(_loggedInUser!.id);
+                    
+                    if (mounted) {
+                      // Hide loading and show success
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ All notifications cleared successfully'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ Error clearing notifications: $e'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                    debugPrint('❌ Failed to clear notifications: $e');
                   }
                 },
                 child: const Text('Clear All'),
@@ -1767,10 +1822,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   }
 
   Widget _buildSingleBookingProgress(ServiceRecord booking) {
-    final progress = booking.status == 'Completed' ? 100.0 :
+    // Calculate progress with defensive checks
+    double progress = booking.status == 'Completed' ? 100.0 :
         booking.status == 'Booking Confirmed' ? 50.0 :
         booking.status == 'Booking In Progress' ? 0.0 : booking.progress.toDouble();
+    
+    // Clamp progress to valid range [0, 100]
+    progress = progress.clamp(0.0, 100.0);
     final isCompleted = progress >= 99.5;
+    
+    debugPrint('🎯 Building single booking progress: ${booking.serviceType}, Status: ${booking.status}, Progress: $progress%, Completed: $isCompleted');
     
     // Use Dismissible for swipe-to-collect when service is completed
     if (isCompleted && _loggedInUser != null) {
@@ -1856,13 +1917,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   }
 
   Widget _buildMultipleBookingsProgress() {
+    // Calculate average progress for collapsed view
+    int totalProgress = 0;
+    for (var record in _allActiveBookings) {
+      if (record.status == 'Completed') {
+        totalProgress += 100;
+      } else if (record.status == 'Booking Confirmed') {
+        totalProgress += 50;
+      } else if (record.status == 'Booking In Progress') {
+        totalProgress += 0;
+      } else {
+        totalProgress += record.progress;
+      }
+    }
+    final avgProgress = _allActiveBookings.isEmpty ? 0 : (totalProgress / _allActiveBookings.length).round();
+    
     if (!_showExpandedProgress) {
-      // Show collapsed progress bar with summary text
+      // Show collapsed progress bar with summary text AND visual progress
       return GestureDetector(
         onTap: () {
           setState(() => _showExpandedProgress = true);
         },
-        child: _buildCollapsedProgressBar(),
+        child: _buildCollapsedProgressBar(avgProgress.toDouble()),
       );
     }
     
@@ -1940,11 +2016,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   }
 
   List<Widget> _buildProgressBarList() {
+    debugPrint('📊 Building progress bar list for ${_allActiveBookings.length} bookings');
     return _allActiveBookings.map((booking) {
-      final progress = booking.status == 'Completed' ? 100.0 :
+      // Calculate progress with defensive checks
+      double progress = booking.status == 'Completed' ? 100.0 :
           booking.status == 'Booking Confirmed' ? 50.0 :
           booking.status == 'Booking In Progress' ? 0.0 : booking.progress.toDouble();
+      
+      // Clamp progress to valid range [0, 100]
+      progress = progress.clamp(0.0, 100.0);
       final isCompleted = progress >= 99.5;
+      
+      debugPrint('📊 - ${booking.serviceType}: Status=${booking.status}, Progress=$progress%, Completed=$isCompleted');
       
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
@@ -2030,7 +2113,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
     }).toList();
   }
 
-  Widget _buildCollapsedProgressBar() {
+  Widget _buildCollapsedProgressBar(double avgProgress) {
+    // Clamp progress to valid range [0, 100] for safety
+    avgProgress = avgProgress.clamp(0.0, 100.0);
+    debugPrint('🎨 Building collapsed progress bar: avgProgress=$avgProgress%');
+    
     return Container(
       height: 50,
       decoration: BoxDecoration(
@@ -2055,35 +2142,66 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
           ),
         ],
       ),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.touch_app, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                'Click to show my booking progress (${_allActiveBookings.length})',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black54,
-                      offset: Offset(0, 2),
-                      blurRadius: 4,
-                    ),
-                  ],
+      child: Stack(
+        children: [
+          // Progress fill - show visual progress
+          ClipRRect(
+            borderRadius: BorderRadius.circular(23),
+            child: FractionallySizedBox(
+              widthFactor: (avgProgress / 100).clamp(0.0, 1.0),
+              alignment: Alignment.centerLeft,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(23),
+                  gradient: avgProgress >= 99.5
+                      ? const LinearGradient(
+                          colors: [
+                            Color(0xFF4CAF50),
+                            Color(0xFF66BB6A),
+                          ],
+                        )
+                      : const LinearGradient(
+                          colors: [
+                            Color(0xFF3B9DD8),
+                            Color(0xFF5AB3E8),
+                          ],
+                        ),
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ],
-        ),
+          ),
+          // Text overlay
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.touch_app, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    '${avgProgress.toInt()}% - ${_allActiveBookings.length} Active Booking${_allActiveBookings.length != 1 ? 's' : ''} (Tap to expand)',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          offset: Offset(0, 2),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2186,10 +2304,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
   }
 
   Widget _buildProgressBar(ServiceRecord? booking, double displayProgress, bool isCompleted) {
+    // Clamp progress to valid range [0, 100] for safety
+    displayProgress = displayProgress.clamp(0.0, 100.0);
+    
     String statusText;
     bool showPercentage = false;
     double adminProgress = 0.0;
     bool isAdmin = _loggedInUser?.isAdmin == true;
+    
+    debugPrint('🎨 Building progress bar: booking=${booking?.serviceType ?? 'null'}, progress=$displayProgress%, completed=$isCompleted, isAdmin=$isAdmin');
     
     // Admin users: Show unconfirmed bookings count
     if (isAdmin) {
@@ -2254,10 +2377,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
           ClipRRect(
             borderRadius: BorderRadius.circular(23),
             child: FractionallySizedBox(
-              widthFactor: (isAdmin ? adminProgress : displayProgress) / 100,
+              widthFactor: ((isAdmin ? adminProgress : displayProgress) / 100).clamp(0.0, 1.0),
               alignment: Alignment.centerLeft,
               child: Container(
                 decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(23),
                   gradient: (isAdmin && adminProgress >= 100) || isCompleted
                       ? const LinearGradient(
                           colors: [

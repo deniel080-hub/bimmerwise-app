@@ -40,15 +40,21 @@ class ServiceRecordService {
   /// Get service records by vehicle ID
   Future<List<ServiceRecord>> getRecordsByVehicleId(String vehicleId) async {
     try {
+      debugPrint('🔍 Fetching service records for vehicle: $vehicleId');
       final snapshot = await _firestore
           .collection('service_records')
           .where('vehicleId', isEqualTo: vehicleId)
           .orderBy('serviceDate', descending: true)
           .get();
       
+      debugPrint('✅ Found ${snapshot.docs.length} service records for vehicle: $vehicleId');
       return snapshot.docs.map((doc) => ServiceRecord.fromJson(doc.data())).toList();
     } catch (e) {
-      debugPrint('Error getting service records by vehicle ID: $e');
+      debugPrint('❌ Error getting service records by vehicle ID ($vehicleId): $e');
+      if (e.toString().contains('permission-denied')) {
+        debugPrint('⚠️ PERMISSION DENIED: User does not have access to service records for vehicle $vehicleId');
+        debugPrint('⚠️ Please deploy the updated Firestore security rules to fix this issue');
+      }
       return [];
     }
   }

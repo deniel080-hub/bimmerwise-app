@@ -110,18 +110,47 @@ class NotificationService {
   }
 
   /// Clear all notifications for a user
+  /// Uses batching to handle large numbers of notifications (500 per batch max in Firestore)
   Future<void> clearNotificationsByUserId(String userId) async {
     try {
+      debugPrint('🗑️ Starting to clear all notifications for user: $userId');
+      
+      // Query ALL notifications without limit
       final snapshot = await _firestore
           .collection('notifications')
           .where('userId', isEqualTo: userId)
           .get();
       
-      for (var doc in snapshot.docs) {
-        await doc.reference.delete();
+      debugPrint('🗑️ Found ${snapshot.docs.length} notifications to delete');
+      
+      if (snapshot.docs.isEmpty) {
+        debugPrint('✅ No notifications to delete');
+        return;
       }
-    } catch (e) {
-      debugPrint('Error clearing notifications: $e');
+      
+      // Firestore batch limit is 500 operations
+      const batchSize = 500;
+      int deletedCount = 0;
+      
+      // Process in batches
+      for (int i = 0; i < snapshot.docs.length; i += batchSize) {
+        final batch = _firestore.batch();
+        final endIndex = (i + batchSize < snapshot.docs.length) ? i + batchSize : snapshot.docs.length;
+        
+        for (int j = i; j < endIndex; j++) {
+          batch.delete(snapshot.docs[j].reference);
+          deletedCount++;
+        }
+        
+        await batch.commit();
+        debugPrint('🗑️ Deleted batch: $deletedCount/${snapshot.docs.length} notifications');
+      }
+      
+      debugPrint('✅ Successfully deleted $deletedCount notifications for user: $userId');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error clearing notifications: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      rethrow; // Re-throw to let UI handle the error
     }
   }
 

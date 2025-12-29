@@ -81,16 +81,27 @@ service cloud.firestore {
     // SERVICE RECORDS COLLECTION
     // ============================================
     match /service_records/{recordId} {
+      // Helper function to check if user owns the vehicle
+      function ownsVehicle(vehicleId) {
+        return isSignedIn() && 
+               get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.userId == request.auth.uid;
+      }
+      
       allow read: if isSignedIn() && 
-                    (resource.data.userId == request.auth.uid || isAdmin());
+                    (resource.data.userId == request.auth.uid || 
+                     ownsVehicle(resource.data.vehicleId) || 
+                     isAdmin());
       
       allow create: if isSignedIn() && 
                       request.resource.data.id == recordId &&
                       (request.resource.data.userId == request.auth.uid || 
-                       request.resource.data.userId == null);
+                       request.resource.data.userId == null ||
+                       ownsVehicle(request.resource.data.vehicleId));
       
       allow update: if isSignedIn() && 
-                      (resource.data.userId == request.auth.uid || isAdmin());
+                      (resource.data.userId == request.auth.uid || 
+                       ownsVehicle(resource.data.vehicleId) || 
+                       isAdmin());
       
       allow delete: if isAdmin();
     }
@@ -104,6 +115,30 @@ service cloud.firestore {
       match /items/{itemId} {
         allow read, write: if isSignedIn() && (isOwner(userId) || isAdmin());
       }
+    }
+    
+    // ============================================
+    // NOTIFICATIONS COLLECTION
+    // ============================================
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      // Admins can read all notifications
+      allow read: if isSignedIn() && 
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Anyone authenticated can create notifications (for system notifications)
+      // This allows the app to create notifications for users
+      allow create: if isSignedIn();
+      
+      // Users can update their own notifications (mark as read)
+      // Admins can update any notification
+      allow update: if isSignedIn() && 
+                      (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Users can delete their own notifications
+      // Admins can delete any notification
+      allow delete: if isSignedIn() && 
+                      (resource.data.userId == request.auth.uid || isAdmin());
     }
   }
 }
