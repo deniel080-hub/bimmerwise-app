@@ -1,66 +1,31 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// FCM Service for handling push notifications
+/// iOS-SAFE: No local notifications plugin to prevent crashes
 class FCMService {
   static final FCMService _instance = FCMService._internal();
   factory FCMService() => _instance;
   FCMService._internal();
 
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _isInitialized = false;
 
-  /// Initialize FCM and request permissions (simplified for iOS and Android)
+  /// Initialize FCM and request permissions (Samsung-safe - no local notifications)
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      debugPrint('⚠️ FCM already initialized, skipping');
+      return;
+    }
 
     try {
-      // Initialize local notifications for foreground messages (mobile only)
-      if (!kIsWeb) {
-        try {
-          const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-          const iosSettings = DarwinInitializationSettings(
-            requestAlertPermission: false,
-            requestBadgePermission: false,
-            requestSoundPermission: false,
-          );
-          const initSettings = InitializationSettings(
-            android: androidSettings,
-            iOS: iosSettings,
-          );
-
-          await _localNotifications.initialize(
-            initSettings,
-            onDidReceiveNotificationResponse: _onNotificationTapped,
-          ).timeout(const Duration(seconds: 5));
-
-          // Create Android notification channel (will be ignored on iOS)
-          const androidChannel = AndroidNotificationChannel(
-            'bimmerwise_channel',
-            'BIMMERWISE Notifications',
-            description: 'Service updates and booking notifications',
-            importance: Importance.high,
-            playSound: true,
-          );
-
-          await _localNotifications
-              .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-              ?.createNotificationChannel(androidChannel);
-          
-          debugPrint('✅ Local notifications initialized');
-        } catch (e) {
-          debugPrint('⚠️ Error initializing local notifications: $e');
-          // Don't throw - continue even if local notifications fail
-        }
-      }
-
+      debugPrint('🚀 Initializing FCM Service (Samsung-safe mode)...');
+      
       // Request FCM permissions (this handles both iOS and Android properly)
       try {
         final settings = await _fcm.requestPermission(
@@ -71,56 +36,83 @@ class FCMService {
           criticalAlert: false,
           provisional: false,
           sound: true,
-        ).timeout(const Duration(seconds: 5));
+        ).timeout(const Duration(seconds: 10));
         
         debugPrint('✅ FCM Permission status: ${settings.authorizationStatus}');
-      } catch (e) {
-        debugPrint('⚠️ Error requesting FCM permissions: $e');
+      } catch (e, stackTrace) {
+        debugPrint('⚠️ Error requesting FCM permissions (Samsung-safe): $e');
+        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
         // Continue anyway - permissions might already be granted
       }
 
-      // Handle foreground messages (when app is open)
+      // Handle foreground messages (when app is open) - SIMPLIFIED & SAMSUNG-SAFE
       try {
-        FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-      } catch (e) {
-        debugPrint('⚠️ Error setting up foreground message listener: $e');
+        FirebaseMessaging.onMessage.listen(
+          (message) {
+            debugPrint('📨 Foreground message: ${message.notification?.title}');
+            // Store in Firestore only - no local notifications to avoid Samsung crashes
+          },
+          onError: (error, stackTrace) {
+            debugPrint('⚠️ Foreground message error: $error');
+            // Don't crash - just log
+          },
+          cancelOnError: false, // Keep stream active even after errors
+        );
+      } catch (e, stackTrace) {
+        debugPrint('⚠️ Error setting up foreground listener: $e');
+        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
       }
 
-      // Handle background message taps
+      // Handle background message taps - SAMSUNG-SAFE
       try {
-        FirebaseMessaging.onMessageOpenedApp.listen(_handleBackgroundMessageTap);
-      } catch (e) {
-        debugPrint('⚠️ Error setting up background message listener: $e');
+        FirebaseMessaging.onMessageOpenedApp.listen(
+          _handleBackgroundMessageTap,
+          onError: (error, stackTrace) {
+            debugPrint('⚠️ Background tap error: $error');
+            // Don't crash - just log
+          },
+          cancelOnError: false,
+        );
+      } catch (e, stackTrace) {
+        debugPrint('⚠️ Error setting up background listener: $e');
+        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
       }
 
-      // Check if app was opened from a terminated state notification
+      // Check if app was opened from a terminated state notification - SAMSUNG-SAFE
       try {
-        final initialMessage = await _fcm.getInitialMessage().timeout(const Duration(seconds: 3));
+        final initialMessage = await _fcm.getInitialMessage().timeout(const Duration(seconds: 5));
         if (initialMessage != null) {
-          debugPrint('📨 App opened from terminated state via notification');
+          debugPrint('📨 App opened from notification');
           _handleBackgroundMessageTap(initialMessage);
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         debugPrint('⚠️ Error getting initial message: $e');
+        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
       }
 
-      // Listen for token refresh
+      // Listen for token refresh - SAMSUNG-SAFE
       try {
-        _fcm.onTokenRefresh.listen((newToken) {
-          debugPrint('🔄 FCM token refreshed: $newToken');
-        }, onError: (error) {
-          debugPrint('⚠️ Error in token refresh listener: $error');
-        });
-      } catch (e) {
-        debugPrint('⚠️ Error setting up token refresh listener: $e');
+        _fcm.onTokenRefresh.listen(
+          (newToken) {
+            debugPrint('🔄 FCM token refreshed');
+          },
+          onError: (error, stackTrace) {
+            debugPrint('⚠️ Token refresh error: $error');
+            // Don't crash - just log
+          },
+          cancelOnError: false,
+        );
+      } catch (e, stackTrace) {
+        debugPrint('⚠️ Error setting up token refresh: $e');
+        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
       }
 
       _isInitialized = true;
-      debugPrint('✅ FCM Service initialized successfully');
+      debugPrint('✅ FCM Service initialized (Samsung-safe mode)');
     } catch (e, stackTrace) {
-      debugPrint('❌ Error initializing FCM: $e');
-      debugPrint('❌ Stack trace: $stackTrace');
-      // ALWAYS mark as initialized so app doesn't get stuck
+      debugPrint('❌ FCM initialization error: $e');
+      debugPrint('❌ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
+      // ALWAYS mark as initialized to prevent crash loops on Samsung devices
       _isInitialized = true;
     }
   }
@@ -131,11 +123,9 @@ class FCMService {
       // On web, FCM might not be available
       if (kIsWeb) {
         try {
-          final token = await _fcm.getToken(
-            vapidKey: 'YOUR_VAPID_KEY_HERE', // Add your VAPID key for web push
-          );
-          debugPrint('📱 FCM Token (Web): $token');
-          return token;
+          // Web push requires VAPID key - skip for now if not configured
+          debugPrint('⚠️ Web FCM not configured (VAPID key required)');
+          return null;
         } catch (e) {
           debugPrint('⚠️ FCM token not available on web: $e');
           return null;
@@ -207,87 +197,29 @@ class FCMService {
     }
   }
 
-  /// Handle foreground messages (when app is open)
-  void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('📨 Foreground message received: ${message.notification?.title}');
-    debugPrint('   - Body: ${message.notification?.body}');
-    debugPrint('   - Data: ${message.data}');
+  /// Handle foreground messages (when app is open) - REMOVED to avoid Samsung crashes
+  /// Notifications are now stored in Firestore and displayed in-app only
 
-    if (message.notification != null) {
-      _showLocalNotification(
-        title: message.notification!.title ?? 'BIMMERWISE',
-        body: message.notification!.body ?? '',
-        payload: message.data['bookingId'] ?? message.data['recordId'] ?? '',
-      );
-    }
-  }
-
-  /// Handle background message tap (when user taps notification)
+  /// Handle background message tap (when user taps notification) - SAMSUNG-SAFE
   void _handleBackgroundMessageTap(RemoteMessage message) {
-    debugPrint('📨 Background message tapped: ${message.notification?.title}');
-    debugPrint('   - Data: ${message.data}');
-    
-    final bookingId = message.data['bookingId'] ?? message.data['recordId'];
-    final notificationType = message.data['type'];
-    
-    debugPrint('   - Booking ID: $bookingId');
-    debugPrint('   - Type: $notificationType');
-  }
-
-  /// Handle local notification tap
-  void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('🔔 Local notification tapped');
-    debugPrint('   - Payload: ${response.payload}');
-  }
-
-  /// Show local notification (for foreground messages)
-  Future<void> _showLocalNotification({
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
     try {
-      const androidDetails = AndroidNotificationDetails(
-        'bimmerwise_channel',
-        'BIMMERWISE Notifications',
-        channelDescription: 'Service updates and booking notifications',
-        importance: Importance.max,
-        priority: Priority.max,
-        showWhen: true,
-        enableVibration: true,
-        playSound: true,
-        icon: '@mipmap/ic_launcher',
-        channelShowBadge: true,
-        visibility: NotificationVisibility.public,
-        ongoing: false,
-        autoCancel: true,
-      );
-
-      const iosDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-        interruptionLevel: InterruptionLevel.timeSensitive,
-      );
-
-      const details = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
-
-      await _localNotifications.show(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        title,
-        body,
-        details,
-        payload: payload,
-      );
+      debugPrint('📨 Background message tapped: ${message.notification?.title}');
+      debugPrint('   - Data: ${message.data}');
       
-      debugPrint('✅ Local notification shown: $title');
-    } catch (e) {
-      debugPrint('❌ Error showing local notification: $e');
+      final bookingId = message.data['bookingId'] ?? message.data['recordId'];
+      final notificationType = message.data['type'];
+      
+      debugPrint('   - Booking ID: $bookingId');
+      debugPrint('   - Type: $notificationType');
+    } catch (e, stackTrace) {
+      // CRITICAL: Never throw from notification handler - causes Samsung crash loops
+      debugPrint('❌ Error handling background message tap: $e');
+      debugPrint('❌ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
     }
   }
+
+  /// Local notifications REMOVED to avoid iOS & Samsung crashes
+  /// All notifications are stored in Firestore and shown in-app only
 
   /// Send notification to a specific user via FCM
   Future<void> sendNotificationToUser({

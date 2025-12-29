@@ -37,7 +37,12 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   void initState() {
     super.initState();
     _loadData();
-    _initializeAdminNotifications();
+    // Delay notification initialization to avoid overwhelming Samsung devices on login
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _initializeAdminNotifications();
+      }
+    });
   }
 
   @override
@@ -116,11 +121,9 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     
     try {
       final userService = UserService();
-      final vehicleService = VehicleService();
-      final serviceRecordService = ServiceRecordService();
 
-      // Add timeout for getting all users - critical for Samsung devices
-      debugPrint('📊 Loading users...');
+      // SIMPLIFIED: Only load users initially, load details on-demand
+      debugPrint('📊 Loading users only...');
       final users = await userService.getAllUsers().timeout(
         const Duration(seconds: 15),
         onTimeout: () {
@@ -130,59 +133,14 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
       );
       debugPrint('📊 Loaded ${users.length} users');
 
-      final Map<String, List<Vehicle>> vehicles = {};
-      final Map<String, List<ServiceRecord>> records = {};
-
-      // Load data for each user with individual timeouts to prevent cascade failures
-      for (var user in users) {
-        if (!mounted) return; // Check if widget is still mounted
-        
-        try {
-          // Add timeout for vehicle loading
-          final userVehicles = await vehicleService.getVehiclesByUserId(user.id).timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              debugPrint('⚠️ Timeout loading vehicles for user ${user.id}');
-              return <Vehicle>[];
-            },
-          );
-          vehicles[user.id] = userVehicles;
-
-          final List<ServiceRecord> userRecords = [];
-          for (var vehicle in userVehicles) {
-            if (!mounted) return; // Check if widget is still mounted
-            
-            try {
-              // Add timeout for service record loading
-              final vehicleRecords = await serviceRecordService.getRecordsByVehicleId(vehicle.id).timeout(
-                const Duration(seconds: 10),
-                onTimeout: () {
-                  debugPrint('⚠️ Timeout loading records for vehicle ${vehicle.id}');
-                  return <ServiceRecord>[];
-                },
-              );
-              userRecords.addAll(vehicleRecords);
-            } catch (e) {
-              debugPrint('❌ Error loading records for vehicle ${vehicle.id}: $e');
-              // Continue loading other records
-            }
-          }
-          records[user.id] = userRecords;
-        } catch (e) {
-          debugPrint('❌ Error loading data for user ${user.id}: $e');
-          // Initialize empty data for this user and continue
-          vehicles[user.id] = [];
-          records[user.id] = [];
-        }
-      }
-
       if (mounted) {
         setState(() {
           _users = users;
-          _userVehicles = vehicles;
-          _userServiceRecords = records;
+          // Initialize empty maps - data will be loaded on-demand when user taps
+          _userVehicles = {};
+          _userServiceRecords = {};
         });
-        debugPrint('✅ Admin data loaded successfully');
+        debugPrint('✅ Admin data loaded successfully (lazy loading enabled)');
       }
 
       // Auto-show user details if highlightBookingId is provided
@@ -217,21 +175,123 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
       }
     }
   }
-
-  void _showUserDetailsForBooking(String bookingId) {
-    // Find the user associated with this booking
-    for (var user in _users) {
-      final userRecords = _userServiceRecords[user.id] ?? [];
-      if (userRecords.any((r) => r.id == bookingId)) {
-        _showUserDetails(user, highlightBookingId: bookingId);
-        return;
+  
+  /// Load user details on-demand (only when user taps on a customer)
+  Future<void> _loadUserDetails(String userId) async {
+    // Skip if already loaded
+    if (_userVehicles.containsKey(userId) && _userServiceRecords.containsKey(userId)) {
+      return;
+    }
+    
+    try {
+      final vehicleService = VehicleService();
+      final serviceRecordService = ServiceRecordService();
+      
+      debugPrint('📊 Loading details for user: $userId');
+      
+      // Load vehicles
+      final userVehicles = await vehicleService.getVehiclesByUserId(userId).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout loading vehicles for user $userId');
+          return <Vehicle>[];
+        },
+      );
+      
+      // Load service records
+      final List<ServiceRecord> userRecords = [];
+      for (var vehicle in userVehicles) {
+        if (!mounted) return;
+        
+        try {
+          final vehicleRecords = await serviceRecordService.getRecordsByVehicleId(vehicle.id).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Timeout loading records for vehicle ${vehicle.id}');
+              return <ServiceRecord>[];
+            },
+          );
+          userRecords.addAll(vehicleRecords);
+        } catch (e) {
+          debugPrint('❌ Error loading records for vehicle ${vehicle.id}: $e');
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _userVehicles[userId] = userVehicles;
+          _userServiceRecords[userId] = userRecords;
+        });
+      }
+      
+      debugPrint('✅ Loaded ${userVehicles.length} vehicles and ${userRecords.length} records for user');
+    } catch (e) {
+      debugPrint('❌ Error loading user details: $e');
+      // Initialize empty data
+      if (mounted) {
+        setState(() {
+          _userVehicles[userId] = [];
+          _userServiceRecords[userId] = [];
+        });
       }
     }
-    // If booking not found, show error
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking not found')),
-      );
+  }
+
+  Future<void> _showUserDetailsForBooking(String bookingId) async {
+    // Need to load all user data first to find the booking
+    try {
+      final vehicleService = VehicleService();
+      final serviceRecordService = ServiceRecordService();
+      
+      // Search through all users to find which one has this booking
+      for (var user in _users) {
+        if (!mounted) return;
+        
+        // Load user's vehicles if not already loaded
+        List<Vehicle> userVehicles = _userVehicles[user.id] ?? [];
+        if (userVehicles.isEmpty) {
+          userVehicles = await vehicleService.getVehiclesByUserId(user.id).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => <Vehicle>[],
+          );
+        }
+        
+        // Check each vehicle's service records
+        for (var vehicle in userVehicles) {
+          if (!mounted) return;
+          
+          final records = await serviceRecordService.getRecordsByVehicleId(vehicle.id).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => <ServiceRecord>[],
+          );
+          
+          if (records.any((r) => r.id == bookingId)) {
+            // Found it! Cache the data and show details
+            if (mounted) {
+              setState(() {
+                _userVehicles[user.id] = userVehicles;
+                _userServiceRecords[user.id] = records;
+              });
+            }
+            await _showUserDetails(user, highlightBookingId: bookingId);
+            return;
+          }
+        }
+      }
+      
+      // If booking not found, show error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking not found')),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error finding booking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error loading booking details')),
+        );
+      }
     }
   }
 
@@ -365,10 +425,29 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     }
   }
 
-  void _showUserDetails(User user, {String? highlightBookingId}) {
+  Future<void> _showUserDetails(User user, {String? highlightBookingId}) async {
+    // Show loading dialog first
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    // Load user details if not already loaded
+    await _loadUserDetails(user.id);
+    
+    // Close loading dialog
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+    
     final vehicles = _userVehicles[user.id] ?? [];
     final serviceRecords = _userServiceRecords[user.id] ?? [];
 
+    if (!mounted) return;
+    
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -764,52 +843,31 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Card(
-                          child: Padding(
-                            padding: AppSpacing.paddingMd,
-                            child: Column(
-                              children: [
-                                Text(
-                                  '${_users.length}',
-                                  style: context.textStyles.displaySmall?.semiBold.withColor(
-                                    Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                                Text(
-                                  'Total Users',
-                                  style: context.textStyles.bodyMedium,
-                                ),
-                              ],
+                  Card(
+                    child: Padding(
+                      padding: AppSpacing.paddingMd,
+                      child: Column(
+                        children: [
+                          Text(
+                            '${_users.length}',
+                            style: context.textStyles.displayLarge?.semiBold.withColor(
+                              Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Card(
-                          child: Padding(
-                            padding: AppSpacing.paddingMd,
-                            child: Column(
-                              children: [
-                                Text(
-                                  '${_userVehicles.values.expand((v) => v).length}',
-                                  style: context.textStyles.displaySmall?.semiBold.withColor(
-                                    Theme.of(context).colorScheme.secondary,
-                                  ),
-                                ),
-                                Text(
-                                  'Total Vehicles',
-                                  style: context.textStyles.bodyMedium,
-                                ),
-                              ],
+                          Text(
+                            'Registered Customers',
+                            style: context.textStyles.titleMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Tap any customer to view details',
+                            style: context.textStyles.bodySmall?.withColor(
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   ElevatedButton.icon(
@@ -840,8 +898,11 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                     )
                   else
                     ..._users.map((user) {
+                      // Check if data is loaded for this user
+                      final isLoaded = _userVehicles.containsKey(user.id);
                       final vehicles = _userVehicles[user.id] ?? [];
                       final serviceRecords = _userServiceRecords[user.id] ?? [];
+                      
                       return Card(
                         margin: const EdgeInsets.only(bottom: AppSpacing.md),
                         child: ListTile(
@@ -858,7 +919,9 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                             children: [
                               Text(user.email),
                               Text(
-                                '${vehicles.length} vehicles • ${serviceRecords.length} records',
+                                isLoaded 
+                                    ? '${vehicles.length} vehicles • ${serviceRecords.length} records'
+                                    : 'Tap to view details',
                                 style: context.textStyles.bodySmall?.withColor(
                                   Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),

@@ -119,16 +119,8 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // Save FCM token for push notifications - completely non-blocking
-      // Use unawaited to explicitly mark this as fire-and-forget
-      unawaited(
-        FCMService().saveTokenToUser(user.id).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => debugPrint('⚠️ FCM token save timeout after login (Samsung device)'),
-        ).catchError((e) => debugPrint('⚠️ Error saving FCM token after login: $e')),
-      );
-
       if (mounted) {
+        // Navigate FIRST - FCM token saved in background (iOS & Samsung safe)
         // If coming from a service booking, go to appropriate booking page
         if (widget.serviceTitle.isNotEmpty) {
           if (widget.serviceTitle == 'Wireless Apple Carplay Activation') {
@@ -147,6 +139,26 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       }
+
+      // Save FCM token AFTER navigation (completely in background, iOS & Samsung safe)
+      Future.delayed(const Duration(seconds: 5), () {
+        try {
+          FCMService().saveTokenToUser(user.id).timeout(
+            const Duration(seconds: 8),
+            onTimeout: () {
+              debugPrint('⚠️ FCM token save timeout (iOS/Samsung safe)');
+              return;
+            },
+          ).catchError((e, stackTrace) {
+            debugPrint('⚠️ FCM token save error (iOS/Samsung safe): $e');
+            // Never block or crash - login always succeeds
+            return;
+          }, test: (_) => true);
+        } catch (e) {
+          debugPrint('⚠️ FCM token save exception (iOS/Samsung safe): $e');
+          // Swallow all errors - login must always succeed
+        }
+      });
     } on firebase_auth.FirebaseAuthException catch (e) {
       debugPrint('Login error: ${e.code} - ${e.message}');
       String errorMessage = 'Login failed. Please try again.';

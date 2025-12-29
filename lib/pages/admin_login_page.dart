@@ -51,30 +51,33 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         return;
       }
 
-      // Save FCM token for push notifications (for admin) - completely non-blocking
-      // Enhanced for Samsung devices with comprehensive error handling
-      final currentUser = authService.currentUser;
-      if (currentUser != null) {
-        // Save FCM token in background without blocking navigation
-        // Use unawaited to explicitly mark this as fire-and-forget
-        unawaited(
-          FCMService().saveTokenToUser(currentUser.uid).timeout(
-            const Duration(seconds: 8),
-            onTimeout: () {
-              debugPrint('⚠️ FCM token save timeout after admin login (Samsung S24/Android)');
-            },
-          ).catchError((e, stackTrace) {
-            debugPrint('⚠️ Error saving FCM token after admin login: $e');
-            debugPrint('   Stack trace (first 2 lines): ${stackTrace.toString().split('\n').take(2).join('\n')}');
-            // Don't block admin login due to FCM errors - especially important for Samsung devices
-          }, test: (error) => true), // Catch ALL errors, not just specific types
-        );
-      }
-
-      // Navigate immediately without waiting for FCM token save
-      // This ensures admin can login even if FCM fails on Samsung devices
+      // Navigate immediately - FCM token saved in background (iOS & Samsung safe)
       if (mounted) {
         context.go('/admin-panel');
+      }
+
+      // Save FCM token AFTER navigation (completely in background, iOS & Samsung safe)
+      final currentUser = authService.currentUser;
+      if (currentUser != null) {
+        // Wait 5 seconds after navigation to ensure admin panel is loaded
+        Future.delayed(const Duration(seconds: 5), () {
+          try {
+            FCMService().saveTokenToUser(currentUser.uid).timeout(
+              const Duration(seconds: 8),
+              onTimeout: () {
+                debugPrint('⚠️ FCM token save timeout (iOS/Samsung safe)');
+                return;
+              },
+            ).catchError((e, stackTrace) {
+              debugPrint('⚠️ FCM token save error (iOS/Samsung safe): $e');
+              // Never block or crash - login always succeeds
+              return;
+            }, test: (_) => true);
+          } catch (e) {
+            debugPrint('⚠️ FCM token save exception (iOS/Samsung safe): $e');
+            // Swallow all errors - login must always succeed
+          }
+        });
       }
     } catch (e) {
       debugPrint('Admin login error: $e');
