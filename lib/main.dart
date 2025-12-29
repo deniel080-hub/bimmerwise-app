@@ -36,24 +36,7 @@ void main() async {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     
-    // iOS-SAFE: Simple crash tracking without Firestore cache clearing
-    SharedPreferences? prefs;
-    try {
-      prefs = await SharedPreferences.getInstance();
-      final crashCount = prefs.getInt('startup_crash_count') ?? 0;
-      
-      if (crashCount >= 3) {
-        debugPrint('⚠️ Detected crash loop ($crashCount crashes), resetting counter...');
-        await prefs.remove('startup_crash_count');
-      } else {
-        // Increment crash counter - will be reset after successful startup
-        await prefs.setInt('startup_crash_count', crashCount + 1);
-      }
-    } catch (e) {
-      debugPrint('⚠️ Could not access SharedPreferences: $e');
-    }
-    
-    // Initialize Firebase with iOS-safe error handling
+    // Initialize Firebase with error handling
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -96,16 +79,6 @@ void main() async {
       debugPrint('❌ Firebase initialization error: $e');
       debugPrint('❌ Stack: $stackTrace');
       debugPrint('⚠️ App continues without Firebase');
-    }
-    
-    // SAMSUNG CRASH RECOVERY: Reset crash counter after successful initialization
-    try {
-      if (prefs != null) {
-        await prefs.setInt('startup_crash_count', 0);
-        debugPrint('✅ Startup successful, crash counter reset');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Could not reset crash counter: $e');
     }
     
     // Initialize the app

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:bimmerwise_connect/services/theme.dart';
 import 'package:bimmerwise_connect/models/service_record_model.dart';
 import 'package:bimmerwise_connect/models/vehicle_model.dart';
-import 'package:bimmerwise_connect/services/auth_service.dart';
 import 'package:bimmerwise_connect/services/user_service.dart';
 import 'package:bimmerwise_connect/services/vehicle_service.dart';
 import 'package:bimmerwise_connect/services/service_record_service.dart';
