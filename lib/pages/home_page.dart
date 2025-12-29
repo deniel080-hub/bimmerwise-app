@@ -834,12 +834,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
     
     if (confirm == true) {
       await AuthService().logout();
+      if (!mounted) return;
       setState(() => _loggedInUser = null);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logged out successfully')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logged out successfully')),
+      );
     }
   }
 
