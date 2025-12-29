@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "305192442938",
+    "project_id": "bimmerwise-9c7bd",
+    "storage_bucket": "bimmerwise-9c7bd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:305192442938:android:822047f1759dfc66592903",
+        "android_client_info": {
+          "package_name": "com.bimmerwise.booking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5YMtIDFPMto4DBuE-R_QYWiHRs86b7VQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

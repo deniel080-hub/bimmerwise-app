@@ -1,0 +1,107 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:bimmerwise_connect/services/theme.dart';
+import 'package:bimmerwise_connect/nav.dart';
+import 'package:bimmerwise_connect/firebase_options.dart';
+import 'package:bimmerwise_connect/services/fcm_service.dart';
+
+/// Background message handler (must be top-level function)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('📨 Background message: ${message.notification?.title}');
+}
+
+/// Main entry point for the application
+///
+/// This sets up:
+/// - Firebase initialization
+/// - Firebase Cloud Messaging (FCM) for push notifications
+/// - go_router navigation
+/// - Material 3 theming with light/dark modes
+void main() async {
+  // Wrap everything in error handling for better crash reporting
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    // Initialize Firebase with comprehensive error handling
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint('✅ Firebase initialized successfully');
+      
+      // Configure Firestore for better performance on all devices (especially Samsung)
+      if (!kIsWeb) {
+        FirebaseFirestore.instance.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        );
+        debugPrint('✅ Firestore persistence enabled with unlimited cache');
+      }
+      
+      // Set up background message handler
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      
+      // Initialize FCM Service with longer timeout for Samsung devices
+      await FCMService().initialize().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          debugPrint('⚠️ FCM initialization timeout - continuing anyway');
+        },
+      );
+    } catch (e, stackTrace) {
+      debugPrint('❌ Firebase initialization error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      debugPrint('⚠️ App will continue but Firebase features may not work');
+    }
+    
+    // Add a small delay to ensure all initialization completes
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Initialize the app
+    runApp(const MyApp());
+  }, (error, stackTrace) {
+    // Catch any uncaught errors in the app
+    debugPrint('💥 Uncaught error: $error');
+    debugPrint('💥 Stack trace: $stackTrace');
+  });
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // MultiProvider wraps the app to provide state to all widgets
+    // As you extend the app, use MultiProvider to wrap the app
+    // and provide state to all widgets
+    // Example:
+    // return MultiProvider(
+    //   providers: [
+    //     ChangeNotifierProvider(create: (_) => ExampleProvider()),
+    //   ],
+    //   child: MaterialApp.router(
+    //     title: 'Dreamflow Starter',
+    //     debugShowCheckedModeBanner: false,
+    //     routerConfig: AppRouter.router,
+    //   ),
+    // );
+    return MaterialApp.router(
+      title: 'BIMMERWISE',
+      debugShowCheckedModeBanner: false,
+
+      // Theme configuration
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.system,
+
+      // Use context.go() or context.push() to navigate to the routes.
+      routerConfig: AppRouter.router,
+    );
+  }
+}

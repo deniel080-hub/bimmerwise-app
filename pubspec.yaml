@@ -1,0 +1,61 @@
+name: bimmerwise_connect
+description: "Experience seamless BMW care with BIMMERWISE: a personalized booking app where you can register your vehicle, track service history, and schedule your next appointment with just a tap."
+publish_to: "none"
+version: 1.0.15+22
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  firebase_messaging: ^16.0.0
+  flutter_local_notifications: ^17.2.3
+  firebase_auth: '>=5.3.3'
+  cloud_firestore: '>=5.5.0'
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.1.0
+  provider: ^6.1.2
+  go_router: ^14.6.2
+  url_launcher: ^6.0.0
+  shared_preferences: ^2.0.0
+  intl: 0.20.2
+  uuid: ^4.0.0
+  image_picker: '>=1.1.2'
+  file_picker: '>=8.1.2'
+  font_awesome_flutter: ^10.0.0
+  firebase_core: ^4.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/bimmerwise2.png
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: assets/images/bimmerwise2.png
+
+flutter_native_splash:
+  color: "#000000"
+  image: assets/images/bimmerwise2.png
+  color_dark: "#000000"
+  image_dark: assets/images/bimmerwise2.png
+  android_12:
+    image: assets/images/bimmerwise2.png
+    color: "#000000"
+  android: true
+  ios: true
+  web: true
