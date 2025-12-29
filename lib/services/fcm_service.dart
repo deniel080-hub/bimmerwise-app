@@ -74,35 +74,45 @@ class FCMService {
         }
       }
 
-      // Initialize local notifications for foreground
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
-      const initSettings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
+      // Initialize local notifications for foreground (with Samsung-specific handling)
+      try {
+        const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+        const iosSettings = DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
+        const initSettings = InitializationSettings(
+          android: androidSettings,
+          iOS: iosSettings,
+        );
 
-      await _localNotifications.initialize(
-        initSettings,
-        onDidReceiveNotificationResponse: _onNotificationTapped,
-      );
+        await _localNotifications.initialize(
+          initSettings,
+          onDidReceiveNotificationResponse: _onNotificationTapped,
+        );
 
-      // Create notification channel for Android
-      const androidChannel = AndroidNotificationChannel(
-        'bimmerwise_channel',
-        'BIMMERWISE Notifications',
-        description: 'Service updates and booking notifications',
-        importance: Importance.high,
-        playSound: true,
-      );
+        // Create notification channel for Android (Samsung/other devices)
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          debugPrint('🤖 Setting up Android notification channel for Samsung/other devices...');
+          const androidChannel = AndroidNotificationChannel(
+            'bimmerwise_channel',
+            'BIMMERWISE Notifications',
+            description: 'Service updates and booking notifications',
+            importance: Importance.high,
+            playSound: true,
+          );
 
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(androidChannel);
+          await _localNotifications
+              .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+              ?.createNotificationChannel(androidChannel);
+          debugPrint('✅ Android notification channel created successfully');
+        }
+      } catch (e, stackTrace) {
+        debugPrint('⚠️ Error initializing local notifications: $e');
+        debugPrint('   Stack trace: ${stackTrace.toString().split('\n').take(2).join('\n')}');
+        // Don't throw - continue with FCM initialization even if local notifications fail
+      }
 
       // Handle foreground messages (when app is open)
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
@@ -154,15 +164,19 @@ class FCMService {
         String? token;
         for (int attempt = 1; attempt <= 3; attempt++) {
           try {
-            // For iOS, get APNs token first
-            final apnsToken = await _fcm.getAPNSToken();
-            if (apnsToken != null) {
-              debugPrint('🍎 APNs Token obtained: ${apnsToken.substring(0, min(20, apnsToken.length))}...');
+            // For iOS, get APNs token first (ONLY on iOS, not Android/Samsung)
+            if (defaultTargetPlatform == TargetPlatform.iOS) {
+              final apnsToken = await _fcm.getAPNSToken();
+              if (apnsToken != null) {
+                debugPrint('🍎 APNs Token obtained: ${apnsToken.substring(0, min(20, apnsToken.length))}...');
+              } else {
+                debugPrint('⚠️ APNs token not available yet (iOS might need permission)');
+              }
             } else {
-              debugPrint('⚠️ APNs token not available yet (iOS might need permission)');
+              debugPrint('🤖 Android device detected (Samsung/other), skipping APNs token');
             }
             
-            // Get FCM token
+            // Get FCM token (works for both iOS and Android)
             token = await _fcm.getToken();
             if (token != null) {
               debugPrint('📱 FCM Token obtained (attempt $attempt): ${token.substring(0, 20)}...');
@@ -172,7 +186,11 @@ class FCMService {
             await Future.delayed(Duration(seconds: attempt));
           } catch (e) {
             debugPrint('⚠️ Error getting FCM token (attempt $attempt): $e');
-            if (attempt == 3) rethrow;
+            if (attempt == 3) {
+              // Don't rethrow - return null instead to avoid crash
+              debugPrint('❌ Failed to get FCM token after 3 attempts, returning null');
+              return null;
+            }
           }
         }
         debugPrint('❌ Failed to get FCM token after 3 attempts');

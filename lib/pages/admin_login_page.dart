@@ -52,24 +52,27 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       }
 
       // Save FCM token for push notifications (for admin) - completely non-blocking
+      // Enhanced for Samsung devices with comprehensive error handling
       final currentUser = authService.currentUser;
       if (currentUser != null) {
         // Save FCM token in background without blocking navigation
         // Use unawaited to explicitly mark this as fire-and-forget
         unawaited(
           FCMService().saveTokenToUser(currentUser.uid).timeout(
-            const Duration(seconds: 5),
+            const Duration(seconds: 8),
             onTimeout: () {
-              debugPrint('⚠️ FCM token save timeout after admin login (Samsung device)');
+              debugPrint('⚠️ FCM token save timeout after admin login (Samsung S24/Android)');
             },
-          ).catchError((e) {
+          ).catchError((e, stackTrace) {
             debugPrint('⚠️ Error saving FCM token after admin login: $e');
+            debugPrint('   Stack trace (first 2 lines): ${stackTrace.toString().split('\n').take(2).join('\n')}');
             // Don't block admin login due to FCM errors - especially important for Samsung devices
-          }),
+          }, test: (error) => true), // Catch ALL errors, not just specific types
         );
       }
 
       // Navigate immediately without waiting for FCM token save
+      // This ensures admin can login even if FCM fails on Samsung devices
       if (mounted) {
         context.go('/admin-panel');
       }
