@@ -27,33 +27,40 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Main entry point for the application
 ///
 /// This sets up:
-/// - Firebase initialization
+/// - Flutter binding initialization
+/// - Firebase initialization with error handling
 /// - Firebase Cloud Messaging (FCM) for push notifications
 /// - go_router navigation
 /// - Material 3 theming with light/dark modes
 void main() async {
   // Wrap everything in error handling for better crash reporting
   runZonedGuarded(() async {
+    // CRITICAL: Initialize Flutter bindings first (iOS-safe)
     WidgetsFlutterBinding.ensureInitialized();
     
-    // Initialize Firebase with error handling
+    // Initialize Firebase with comprehensive error handling (iOS-safe)
     try {
+      debugPrint('🚀 Starting Firebase initialization...');
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
       debugPrint('✅ Firebase initialized successfully');
       
-      // Configure Firestore - SAMSUNG-SAFE with limited cache
+      // Configure Firestore with platform-specific settings
       if (!kIsWeb) {
         try {
+          // iOS/Android: Enable offline persistence with cache limit
           FirebaseFirestore.instance.settings = const Settings(
             persistenceEnabled: true,
             cacheSizeBytes: 100 * 1024 * 1024, // 100MB limit
           );
-          debugPrint('✅ Firestore persistence enabled');
+          debugPrint('✅ Firestore persistence enabled (mobile)');
         } catch (e) {
           debugPrint('⚠️ Firestore settings error: $e');
+          // Continue without persistence if it fails
         }
+      } else {
+        debugPrint('✅ Firestore configured for web');
       }
       
       // Set up background message handler
@@ -64,17 +71,19 @@ void main() async {
         debugPrint('⚠️ Background handler error: $e');
       }
       
-      // Initialize FCM Service - delayed start for stability
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        FCMService().initialize().timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            debugPrint('⚠️ FCM timeout');
-          },
-        ).catchError((e) {
-          debugPrint('⚠️ FCM error: $e');
-        }, test: (_) => true);
-      });
+      // Initialize FCM Service - delayed start for stability (iOS-safe)
+      if (!kIsWeb) {
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          FCMService().initialize().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ FCM timeout');
+            },
+          ).catchError((e) {
+            debugPrint('⚠️ FCM error: $e');
+          }, test: (_) => true);
+        });
+      }
     } catch (e, stackTrace) {
       debugPrint('❌ Firebase initialization error: $e');
       debugPrint('❌ Stack: $stackTrace');

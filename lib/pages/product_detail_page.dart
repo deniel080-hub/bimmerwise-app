@@ -7,6 +7,7 @@ import 'package:bimmerwise_connect/services/auth_service.dart';
 import 'package:bimmerwise_connect/models/product_model.dart';
 import 'package:bimmerwise_connect/models/cart_item_model.dart';
 import 'package:uuid/uuid.dart';
+import 'package:lottie/lottie.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final String productId;
@@ -132,7 +133,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             clipBehavior: Clip.none,
             children: [
               IconButton(
-                icon: const Icon(Icons.shopping_cart),
+                icon: Lottie.asset(
+                  'assets/documents/shopping-cart.json',
+                  width: 37,
+                  height: 37,
+                ),
                 onPressed: () async {
                   await context.push('/cart');
                   _loadCartCount();

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:lottie/lottie.dart';
 import 'package:bimmerwise_connect/services/theme.dart';
 import 'package:bimmerwise_connect/services/auth_service.dart';
 import 'package:bimmerwise_connect/services/fcm_service.dart';
@@ -320,33 +321,39 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
+                  GestureDetector(
+                    onTap: _isLoading ? null : _login,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
                       ),
-                    ),
-                    child: _isLoading
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Theme.of(context).colorScheme.onPrimary,
+                      child: _isLoading
+                          ? Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Center(
+                                child: SizedBox(
+                                  height: 30,
+                                  width: 30,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
                               ),
+                            )
+                          : Lottie.asset(
+                              'assets/documents/login.json',
+                              height: 80,
+                              fit: BoxFit.contain,
                             ),
-                          )
-                        : Text(
-                            'Login',
-                            style: context.textStyles.titleMedium?.semiBold.withColor(
-                              Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   TextButton(

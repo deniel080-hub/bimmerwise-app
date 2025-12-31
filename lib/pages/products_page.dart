@@ -5,6 +5,7 @@ import 'package:bimmerwise_connect/services/product_service.dart';
 import 'package:bimmerwise_connect/services/cart_service.dart';
 import 'package:bimmerwise_connect/services/auth_service.dart';
 import 'package:bimmerwise_connect/models/product_model.dart';
+import 'package:lottie/lottie.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -72,7 +73,11 @@ class _ProductsPageState extends State<ProductsPage> {
             clipBehavior: Clip.none,
             children: [
               IconButton(
-                icon: const Icon(Icons.shopping_cart),
+                icon: Lottie.asset(
+                  'assets/documents/shopping-cart.json',
+                  width: 37,
+                  height: 37,
+                ),
                 onPressed: () async {
                   await context.push('/cart');
                   _loadCartCount();

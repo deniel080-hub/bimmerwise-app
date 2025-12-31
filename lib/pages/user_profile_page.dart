@@ -14,6 +14,8 @@ import 'package:bimmerwise_connect/services/notification_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
+import 'package:bimmerwise_connect/widgets/safe_lottie.dart';
 
 class UserProfilePage extends StatefulWidget {
   final String userId;
@@ -1114,6 +1116,127 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
+  Future<void> _confirmCollection(ServiceRecord record) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Vehicle Collection'),
+        content: Text(
+          'Please confirm that you have collected your ${_vehicles.firstWhere((v) => v.id == record.vehicleId).model} from our service center.\n\nService: ${record.serviceType}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not Yet'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm Collection'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final updatedRecord = record.copyWith(
+          status: 'Collected',
+          progress: 100,
+          updatedAt: DateTime.now(),
+        );
+
+        await ServiceRecordService().updateRecord(updatedRecord);
+        
+        // Show success animation
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: SafeLottie(
+                        assetPath: 'assets/documents/Check_Mark_-_Success.json',
+                        width: 200,
+                        height: 200,
+                        repeat: false,
+                        fallbackIcon: Icons.check_circle,
+                        fallbackColor: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Vehicle Collected!',
+                      style: context.textStyles.titleLarge?.semiBold.withColor(
+                        Colors.green,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Thank you for choosing BIMMERWISE',
+                      style: context.textStyles.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 30,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        
+        await _loadData();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Collection confirmed! Thank you for your business.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error confirming collection: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to confirm collection'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _cancelBooking(ServiceRecord record) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1607,6 +1730,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       vehicle: vehicle,
                       statusColor: _getStatusColor(record),
                       statusDescription: _getStatusDescription(record),
+                      onConfirmCollection: record.status == 'Completed' ? () => _confirmCollection(record) : null,
                     );
                   }),
                 const SizedBox(height: AppSpacing.xxl),
@@ -1829,6 +1953,7 @@ class ServiceRecordCard extends StatefulWidget {
   final String statusDescription;
   final VoidCallback? onModify;
   final VoidCallback? onCancel;
+  final VoidCallback? onConfirmCollection;
 
   const ServiceRecordCard({
     super.key,
@@ -1838,6 +1963,7 @@ class ServiceRecordCard extends StatefulWidget {
     required this.statusDescription,
     this.onModify,
     this.onCancel,
+    this.onConfirmCollection,
   });
 
   @override
@@ -2101,42 +2227,60 @@ class _ServiceRecordCardState extends State<ServiceRecordCard> with SingleTicker
               ),
             ),
           ],
-          if (widget.onModify != null || widget.onCancel != null) ...[
+          if (widget.onModify != null || widget.onCancel != null || widget.onConfirmCollection != null) ...[
             const SizedBox(height: AppSpacing.md),
             const Divider(),
             const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                if (widget.onModify != null)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: widget.onModify,
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Modify'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF3B9DD8),
-                        side: const BorderSide(color: Color(0xFF3B9DD8)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+            if (widget.onConfirmCollection != null)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: widget.onConfirmCollection,
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Confirm Vehicle Collection'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                   ),
-                if (widget.onModify != null && widget.onCancel != null)
-                  const SizedBox(width: AppSpacing.sm),
-                if (widget.onCancel != null)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: widget.onCancel,
-                      icon: const Icon(Icons.cancel),
-                      label: const Text('Cancel'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  if (widget.onModify != null)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onModify,
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Modify'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF3B9DD8),
+                          side: const BorderSide(color: Color(0xFF3B9DD8)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                  if (widget.onModify != null && widget.onCancel != null)
+                    const SizedBox(width: AppSpacing.sm),
+                  if (widget.onCancel != null)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onCancel,
+                        icon: const Icon(Icons.cancel),
+                        label: const Text('Cancel'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
           ],
         ],
       ),

@@ -1,0 +1,222 @@
+Incident Identifier: D6580CA8-39D4-4DC2-AA04-47FCEA1A3C95
+Distributor ID:      com.apple.TestFlight
+Hardware Model:      iPhone18,1
+Process:             Runner [20533]
+Path:                /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Runner
+Identifier:          com.bimmerwise.app
+Version:             1.0.40 (49)
+AppStoreTools:       17C53
+AppVariant:          1:iPhone18,1:26
+Beta:                YES
+Code Type:           ARM-64 (Native)
+Role:                Foreground
+Parent Process:      launchd [1]
+Coalition:           com.bimmerwise.app [5297]
+
+Date/Time:           2025-12-31 03:59:53.4855 +0000
+Launch Time:         2025-12-31 03:59:53.4053 +0000
+OS Version:          iPhone OS 26.1 (23B85)
+Release Type:        User
+Baseband Version:    1.10.05
+Report Version:      104
+
+Exception Type:  EXC_BAD_ACCESS (SIGSEGV)
+Exception Subtype: KERN_INVALID_ADDRESS at 0x0000000000000000
+Exception Codes: 0x0000000000000001, 0x0000000000000000
+VM Region Info: 0 is not in any region.  Bytes before following region: 4311367680
+      REGION TYPE                 START - END      [ VSIZE] PRT/MAX SHRMOD  REGION DETAIL
+      UNUSED SPACE AT START
+--->  
+      __TEXT                   100fa4000-100fa8000 [   16K] r-x/r-x SM=COW  /var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Runner
+Termination Reason: SIGNAL 11 Segmentation fault: 11
+Terminating Process: exc handler [20533]
+
+Triggered by Thread:  0
+
+
+Thread 0 name:
+Thread 0 Crashed:
+0   Flutter                       	0x0000000106b28ea4 0x106aa4000 + 544420
+1   Flutter                       	0x0000000106b13cbc 0x106aa4000 + 457916
+2   Flutter                       	0x0000000106b11828 0x106aa4000 + 448552
+3   UIKitCore                     	0x000000019c0c1f08 -[UIViewController _sendViewDidLoadWithAppearanceProxyObjectTaggingEnabled] + 84 (UIViewController.m:3125)
+4   UIKitCore                     	0x000000019c0b311c -[UIViewController loadViewIfRequired] + 944 (UIViewController.m:5056)
+5   UIKitCore                     	0x000000019c0b2d4c -[UIViewController view] + 24 (UIViewController.m:5078)
+6   UIKitCore                     	0x000000019c0f8160 -[UIWindow addRootViewControllerViewIfPossible] + 136 (UIWindow.m:2530)
+7   UIKitCore                     	0x000000019d4f4aa0 -[UIWindow _updateLayerOrderingAndSetLayerHidden:actionBlock:] + 172 (UIWindow.m:2427)
+8   UIKitCore                     	0x000000019d4f4e44 -[UIWindow _setHidden:forced:] + 260 (UIWindow.m:2673)
+9   UIKitCore                     	0x000000019c10b018 -[UIWindow _mainQueue_makeKeyAndVisible] + 40 (UIWindow.m:7228)
+10  UIKitCore                     	0x000000019d4c1620 -[UIApplication _callInitializationDelegatesWithActions:forScene:payload:fromOriginatingProcess:] + 3240 (UIApplication.m:3075)
+11  UIKitCore                     	0x000000019d4c55c0 -[UIApplication _runWithMainScene:transitionContext:completion:] + 788 (UIApplication.m:4956)
+12  UIKitCore                     	0x000000019cad1cc4 -[_UISceneLifecycleMultiplexer completeApplicationLaunchWithFBSScene:transitionContext:] + 116 (_UISceneLifecycleMultiplexer.m:456)
+13  UIKitCore                     	0x000000019c185a58 _UIScenePerformActionsWithLifecycleActionMask + 112 (_UISceneLifecycleState.m:109)
+14  UIKitCore                     	0x000000019cad2540 __101-[_UISceneLifecycleMultiplexer _evalTransitionToSettings:fromSettings:forceExit:withTransitionStore:]_block_invoke + 252 (_UISceneLifecycleMultiplexer.m:572)
+15  UIKitCore                     	0x000000019cad204c -[_UISceneLifecycleMultiplexer _performBlock:withApplicationOfDeactivationReasons:fromReasons:] + 212 (_UISceneLifecycleMultiplexer.m:521)
+16  UIKitCore                     	0x000000019cad2358 -[_UISceneLifecycleMultiplexer _evalTransitionToSettings:fromSettings:forceExit:withTransitionStore:] + 608 (_UISceneLifecycleMultiplexer.m:571)
+17  UIKitCore                     	0x000000019cad1de4 -[_UISceneLifecycleMultiplexer uiScene:transitionedFromState:withTransitionContext:] + 244 (_UISceneLifecycleMultiplexer.m:474)
+18  UIKitCore                     	0x000000019cadd264 __186-[_UIWindowSceneFBSSceneTransitionContextDrivenLifecycleSettingsDiffAction _performActionsForUIScene:withUpdatedFBSScene:settingsDiff:fromSettings:transitionContext:lifecycleActionType:]_block... + 148 (_UIWindowSceneFBSSceneTransitionContextDrivenLifecycleSettingsDiffAction.m:73)
+19  UIKitCore                     	0x000000019cf4eaf8 +[BSAnimationSettings(UIKit) tryAnimatingWithSettings:fromCurrentState:actions:completion:] + 736 (BSAnimationSettings+UIKit.m:54)
+20  UIKitCore                     	0x000000019c186870 _UISceneSettingsDiffActionPerformChangesWithTransitionContextAndCompletion + 224 (_UISceneSettingsDiffAction.m:27)
+21  UIKitCore                     	0x000000019cadcf60 -[_UIWindowSceneFBSSceneTransitionContextDrivenLifecycleSettingsDiffAction _performActionsForUIScene:withUpdatedFBSScene:settingsDiff:fromSettings:transitionContext:lifecycleActionType:] + 316 (_UIWindowSceneFBSSceneTransitionContextDrivenLifecycleSettingsDiffAction.m:58)
+22  UIKitCore                     	0x000000019c91c2d8 __64-[UIScene scene:didUpdateWithDiff:transitionContext:completion:]_block_invoke.218 + 616 (UIScene.m:2180)
+23  UIKitCore                     	0x000000019c91b36c -[UIScene _emitSceneSettingsUpdateResponseForCompletion:afterSceneUpdateWork:] + 208 (UIScene.m:1831)
+24  UIKitCore                     	0x000000019c91bf44 -[UIScene scene:didUpdateWithDiff:transitionContext:completion:] + 244 (UIScene.m:2139)
+25  UIKitCore                     	0x000000019d4c458c -[UIApplication workspace:didCreateScene:withTransitionContext:completion:] + 476 (UIApplication.m:4380)
+26  UIKitCore                     	0x000000019cf778e8 -[UIApplicationSceneClientAgent scene:didInitializeWithEvent:completion:] + 288 (UIApplicationSceneClientAgent.m:46)
+27  FrontBoardServices            	0x00000001b645d394 __95-[FBSScene _callOutQueue_didCreateWithTransitionContext:alternativeCreationCallout:completion:]_block_invoke + 364 (FBSScene.m:670)
+28  FrontBoardServices            	0x00000001b645d84c -[FBSScene _callOutQueue_maybeCoalesceClientSettingsUpdates:] + 128 (FBSScene.m:738)
+29  FrontBoardServices            	0x00000001b645d1ac -[FBSScene _callOutQueue_didCreateWithTransitionContext:alternativeCreationCallout:completion:] + 436 (FBSScene.m:655)
+30  FrontBoardServices            	0x00000001b64cbb38 __93-[FBSWorkspaceScenesClient _callOutQueue_sendDidCreateForScene:transitionContext:completion:]_block_invoke.341 + 288 (FBSWorkspaceScenesClient.m:1131)
+31  FrontBoardServices            	0x00000001b646af0c -[FBSWorkspace _calloutQueue_executeCalloutFromSource:withBlock:] + 168 (FBSWorkspace.m:579)
+32  FrontBoardServices            	0x00000001b6487da4 -[FBSWorkspaceScenesClient _callOutQueue_sendDidCreateForScene:transitionContext:completion:] + 480 (FBSWorkspaceScenesClient.m:1128)
+33  FrontBoardServices            	0x00000001b6489708 __92-[FBSWorkspaceScenesClient createSceneWithIdentity:parameters:transitionContext:completion:]_block_invoke_2 + 268 (FBSWorkspaceScenesClient.m:835)
+34  FrontBoardServices            	0x00000001b646af0c -[FBSWorkspace _calloutQueue_executeCalloutFromSource:withBlock:] + 168 (FBSWorkspace.m:579)
+35  libdispatch.dylib             	0x00000001cebe27ec _dispatch_client_callout + 16 (client_callout.mm:85)
+36  libdispatch.dylib             	0x00000001cebcdbb4 _dispatch_block_invoke_direct + 284 (queue.c:539)
+37  BoardServices                 	0x00000001adeae1d4 __BSSERVICEMAINRUNLOOPQUEUE_IS_CALLING_OUT_TO_A_BLOCK__ + 52 (BSServiceQueue.m:307)
+38  BoardServices                 	0x00000001adeae054 BSServiceMainRunLoopSourceHandler + 224 (BSServiceQueue.m:215)
+39  CoreFoundation                	0x00000001967d2f24 __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__ + 28 (CFRunLoop.c:2021)
+40  CoreFoundation                	0x00000001967d2e98 __CFRunLoopDoSource0 + 172 (CFRunLoop.c:2065)
+41  CoreFoundation                	0x00000001967b0b30 __CFRunLoopDoSources0 + 332 (CFRunLoop.c:2110)
+42  CoreFoundation                	0x00000001967876d8 __CFRunLoopRun + 820 (CFRunLoop.c:2983)
+43  CoreFoundation                	0x0000000196786a6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+44  GraphicsServices              	0x00000002373b0498 GSEventRunModal + 120 (GSEvent.c:2049)
+45  UIKitCore                     	0x000000019c14aba4 -[UIApplication _run] + 792 (UIApplication.m:3902)
+46  UIKitCore                     	0x000000019c0f3a78 UIApplicationMain + 336 (UIApplication.m:5577)
+47  UIKitCore                     	0x000000019c21f68c UIApplicationMain(_:_:_:_:) + 104 (UIApplication.swift:13)
+48  Runner                        	0x0000000100fa884c 0x100fa4000 + 18508
+49  Runner                        	0x0000000100fa87bc 0x100fa4000 + 18364
+50  Runner                        	0x0000000100fa88c8 0x100fa4000 + 18632
+51  dyld                          	0x000000019379ee28 start + 7116 (dyldMain.cpp:1477)
+
+Thread 1 name:
+Thread 1:
+0   libsystem_kernel.dylib        	0x000000024048c10c __ulock_wait + 8 (:-1)
+1   libdispatch.dylib             	0x00000001cebcac6c _dlock_wait + 56 (lock.c:326)
+2   libdispatch.dylib             	0x00000001cebcaa8c _dispatch_thread_event_wait_slow + 56 (lock.c:558)
+3   libdispatch.dylib             	0x00000001cebd8ba0 __DISPATCH_WAIT_FOR_QUEUE__ + 368 (queue.c:1726)
+4   libdispatch.dylib             	0x00000001cebd8758 _dispatch_sync_f_slow + 148 (queue.c:1823)
+5   libsystem_trace.dylib         	0x00000001bb1461dc ___os_state_request_for_self_block_invoke + 372 (state.c:327)
+6   libdispatch.dylib             	0x00000001cebc8adc _dispatch_call_block_and_release + 32 (init.c:1575)
+7   libdispatch.dylib             	0x00000001cebe27ec _dispatch_client_callout + 16 (client_callout.mm:85)
+8   libdispatch.dylib             	0x00000001cebd1468 _dispatch_lane_serial_drain + 740 (queue.c:3991)
+9   libdispatch.dylib             	0x00000001cebd1f78 _dispatch_lane_invoke + 440 (queue.c:4082)
+10  libdispatch.dylib             	0x00000001cebdc3ec _dispatch_root_queue_drain_deferred_wlh + 292 (queue.c:7265)
+11  libdispatch.dylib             	0x00000001cebdbce4 _dispatch_workloop_worker_thread + 692 (queue.c:6859)
+12  libsystem_pthread.dylib       	0x00000001f27d23b8 _pthread_wqthread + 292 (pthread.c:2696)
+13  libsystem_pthread.dylib       	0x00000001f27d18c0 start_wqthread + 8 (:-1)
+
+Thread 2:
+
+Thread 3:
+
+Thread 4:
+
+Thread 5 name:
+Thread 5:
+0   libsystem_kernel.dylib        	0x000000024048c10c __ulock_wait + 8 (:-1)
+1   libdispatch.dylib             	0x00000001cebcac6c _dlock_wait + 56 (lock.c:326)
+2   libdispatch.dylib             	0x00000001cebcaa8c _dispatch_thread_event_wait_slow + 56 (lock.c:558)
+3   libdispatch.dylib             	0x00000001cebd8ba0 __DISPATCH_WAIT_FOR_QUEUE__ + 368 (queue.c:1726)
+4   libdispatch.dylib             	0x00000001cebd8758 _dispatch_sync_f_slow + 148 (queue.c:1823)
+5   UIKitCore                     	0x000000019d2f76d0 __37-[_UIRemoteKeyboards startConnection]_block_invoke.449 + 144 (_UIRemoteKeyboards.m:1337)
+6   CoreFoundation                	0x00000001967af6c4 __invoking___ + 148 (:-1)
+7   CoreFoundation                	0x00000001967af550 -[NSInvocation invoke] + 424 (NSForwarding.m:3411)
+8   Foundation                    	0x0000000193e08a10 <deduplicated_symbol> + 16 (:-1)
+9   Foundation                    	0x000000019484d978 -[NSXPCConnection _decodeAndInvokeReplyBlockWithEvent:sequence:replyInfo:] + 528 (NSXPCConnection.m:314)
+10  Foundation                    	0x00000001948516e4 __88-[NSXPCConnection _sendInvocation:orArguments:count:methodSignature:selector:withProxy:]_block_invoke_5 + 188 (NSXPCConnection.m:1658)
+11  libxpc.dylib                  	0x00000001aa908df8 _xpc_connection_reply_callout + 124 (serializer.c:119)
+12  libxpc.dylib                  	0x00000001aa8fa4ec _xpc_connection_call_reply_async + 96 (connection.c:940)
+13  libdispatch.dylib             	0x00000001cebe281c <deduplicated_symbol> + 16 (:-1)
+14  libdispatch.dylib             	0x00000001cebe6810 _dispatch_mach_msg_async_reply_invoke + 340 (mach.c:3111)
+15  libdispatch.dylib             	0x00000001cebd12d0 _dispatch_lane_serial_drain + 332 (queue.c:3991)
+16  libdispatch.dylib             	0x00000001cebd1f78 _dispatch_lane_invoke + 440 (queue.c:4082)
+17  libdispatch.dylib             	0x00000001cebdc3ec _dispatch_root_queue_drain_deferred_wlh + 292 (queue.c:7265)
+18  libdispatch.dylib             	0x00000001cebdbce4 _dispatch_workloop_worker_thread + 692 (queue.c:6859)
+19  libsystem_pthread.dylib       	0x00000001f27d23b8 _pthread_wqthread + 292 (pthread.c:2696)
+20  libsystem_pthread.dylib       	0x00000001f27d18c0 start_wqthread + 8 (:-1)
+
+Thread 6:
+
+Thread 7 name:
+Thread 7:
+0   libsystem_kernel.dylib        	0x0000000240485cd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x00000002404892f8 mach_msg2_internal + 76 (mach_msg.c:201)
+2   libsystem_kernel.dylib        	0x0000000240489214 mach_msg_overwrite + 428 (mach_msg.c:0)
+3   libsystem_kernel.dylib        	0x000000024048905c mach_msg + 24 (mach_msg.c:323)
+4   CoreFoundation                	0x00000001967b0868 __CFRunLoopServiceMachPort + 160 (CFRunLoop.c:2650)
+5   CoreFoundation                	0x0000000196787848 __CFRunLoopRun + 1188 (CFRunLoop.c:3035)
+6   CoreFoundation                	0x0000000196786a6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+7   Foundation                    	0x0000000194782d60 -[NSRunLoop(NSRunLoop) runMode:beforeDate:] + 212 (NSRunLoop.m:375)
+8   Foundation                    	0x0000000194782f38 -[NSRunLoop(NSRunLoop) runUntilDate:] + 64 (NSRunLoop.m:422)
+9   UIKitCore                     	0x000000019c11fcac -[UIEventFetcher threadMain] + 408 (UIEventFetcher.m:1333)
+10  Foundation                    	0x0000000193e4221c __NSThread__start__ + 732 (NSThread.m:997)
+11  libsystem_pthread.dylib       	0x00000001f27d544c _pthread_start + 136 (pthread.c:931)
+12  libsystem_pthread.dylib       	0x00000001f27d18cc thread_start + 8 (:-1)
+
+Thread 8:
+
+
+Thread 0 crashed with ARM Thread State (64-bit):
+    x0: 0x0000000150208810   x1: 0x0300000200b68151   x2: 0x0000000000000103   x3: 0x0000000000000103
+    x4: 0x0000000000000000   x5: 0x0000000000000000   x6: 0x0000000000000000   x7: 0x0000000000000000
+    x8: 0x00000001089c5838   x9: 0x0000000000000002  x10: 0x0000000000000000  x11: 0x0000000000000002
+   x12: 0x0000000000000000  x13: 0x0000000000000000  x14: 0x0000000000000003  x15: 0x0000000000000002
+   x16: 0x0300000200b68151  x17: 0x0400000200b68151  x18: 0x0000000000000000  x19: 0x0000000150052840
+   x20: 0x0000000000000000  x21: 0x0000000150208810  x22: 0x000000016ee586e8  x23: 0x0000000108a5c000
+   x24: 0x0000000150052840  x25: 0x0000000000000001  x26: 0x0000000000000000  x27: 0x00000001501f1f40
+   x28: 0x0000000200b0e840   fp: 0x000000016ee58740   lr: 0x0000000106b28e90
+    sp: 0x000000016ee586d0   pc: 0x0000000106b28ea4 cpsr: 0x60000000
+   esr: 0x92000006 (Data Abort) byte read Translation fault
+
+
+Binary Images:
+        0x100fa4000 -         0x10102bfff Runner arm64  <941c694494bc373dbbf5905ce4236af7> /var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Runner
+        0x101118000 -         0x10112ffff FBLPromises arm64  <48e0c61e3b34342cb3eb5e302150f992> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FBLPromises.framework/FBLPromises
+        0x101150000 -         0x101157fff FirebaseAppCheckInterop arm64  <d5d926c560dd335e8d1135672df03a7b> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseAppCheckInterop.framework/FirebaseAppCheckInterop
+        0x101168000 -         0x10116ffff FirebaseAuthInterop arm64  <3d9b5707e3583528a4a73ec7f855f7bd> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseAuthInterop.framework/FirebaseAuthInterop
+        0x101180000 -         0x101197fff FirebaseCore arm64  <6b8870f15f2a3c1ba01852d593f32f3e> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseCore.framework/FirebaseCore
+        0x101260000 -         0x101267fff FirebaseCoreExtension arm64  <63cd3012b8f43399b2565c579f2516ca> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseCoreExtension.framework/FirebaseCoreExtension
+        0x101278000 -         0x10127ffff RecaptchaInterop arm64  <0eb2b0117c593f21ab01e7e32607c8f8> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/RecaptchaInterop.framework/RecaptchaInterop
+        0x1012f8000 -         0x101393fff DKImagePickerController arm64  <65e3fcfc9ce431d6b033bd8ac80fab6b> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/DKImagePickerController.framework/DKImagePickerController
+        0x101480000 -         0x101507fff DKPhotoGallery arm64  <49318e52f9803f9c87eb66aebd9cd074> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/DKPhotoGallery.framework/DKPhotoGallery
+        0x1015c8000 -         0x101757fff FirebaseAuth arm64  <629dcfde0280346f98c9a6dfb8787ead> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseAuth.framework/FirebaseAuth
+        0x101994000 -         0x1019bffff FirebaseCoreInternal arm64  <ac77b3ae70f836999e5c05e7817bd72e> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseCoreInternal.framework/FirebaseCoreInternal
+        0x101a14000 -         0x101a3ffff FirebaseFirestore arm64  <48da14d9d04432f3a600035eec6afc1f> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseFirestore.framework/FirebaseFirestore
+        0x101a94000 -         0x101f5bfff FirebaseFirestoreInternal arm64  <e298dd7f08a833cfad84b3c1651e4c6a> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseFirestoreInternal.framework/FirebaseFirestoreInternal
+        0x102c7c000 -         0x102c9bfff FirebaseInstallations arm64  <e4efb387d4e13cd4a647bfafffd7d2b1> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseInstallations.framework/FirebaseInstallations
+        0x102cc4000 -         0x102d0bfff FirebaseMessaging arm64  <fc653ab0b5163e8a8749ffb3973fe19d> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseMessaging.framework/FirebaseMessaging
+        0x102d58000 -         0x102da7fff FirebaseSharedSwift arm64  <d6660e740d2836c7b619ecc6616b9591> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/FirebaseSharedSwift.framework/FirebaseSharedSwift
+        0x102e10000 -         0x102e63fff GTMSessionFetcher arm64  <e94651027c013c529e51b8ea709990a5> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher
+        0x102ea8000 -         0x102edbfff GoogleDataTransport arm64  <0df84c76f96538749726540b531779f8> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/GoogleDataTransport.framework/GoogleDataTransport
+        0x102f18000 -         0x102f3ffff GoogleUtilities arm64  <679610d1b1fe3ad0829e1866e9129354> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/GoogleUtilities.framework/GoogleUtilities
+        0x102f68000 -         0x102feffff SDWebImage arm64  <ad9086026ed83f6e96bbd09348b19703> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/SDWebImage.framework/SDWebImage
+        0x103078000 -         0x103093fff SwiftyGif arm64  <d4a897c1ac0f397b8ef7998b1cedeef6> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/SwiftyGif.framework/SwiftyGif
+        0x1030c4000 -         0x10320bfff absl arm64  <bd97fc65d14b3153bd9c51d14511eb25> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/absl.framework/absl
+        0x103430000 -         0x103443fff file_picker arm64  <85ef8908439a3e29b7708a0013319bef> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/file_picker.framework/file_picker
+        0x10345c000 -         0x103463fff flutter_native_splash arm64  <dea929be92343ef0b801948648dbe9d7> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/flutter_native_splash.framework/flutter_native_splash
+        0x103474000 -         0x104117fff grpc arm64  <af84a7b13e1e32e2ac90b600d3c8c41f> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/grpc.framework/grpc
+        0x106200000 -         0x1062cffff grpcpp arm64  <4c84e7d9fa973e5d804991abb2d821de> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/grpcpp.framework/grpcpp
+        0x10654c000 -         0x106563fff image_picker_ios arm64  <020f1f768e3c3c0a9730ca07a4ed0fb3> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/image_picker_ios.framework/image_picker_ios
+        0x106584000 -         0x1065ebfff leveldb arm64  <b65a2f0755473660bf4c3a9bc8b625f3> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/leveldb.framework/leveldb
+        0x10669c000 -         0x1066a7fff nanopb arm64  <b230451509313604bc19e2644b2a4f73> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/nanopb.framework/nanopb
+        0x1066bc000 -         0x106887fff openssl_grpc arm64  <4deba231c7e43a27a9146cd791ecaccf> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/openssl_grpc.framework/openssl_grpc
+        0x1069f8000 -         0x106a07fff path_provider_foundation arm64  <a0524145c5cc3f0ea0bb0d9b93c27f4b> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/path_provider_foundation.framework/path_provider_foundation
+        0x106a28000 -         0x106a3ffff shared_preferences_foundation arm64  <f54210e9daf736fa83620f0ff6e6a840> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation
+        0x106a68000 -         0x106a7bfff url_launcher_ios arm64  <bf65ef71194b3fb58198bf0dbb7dab02> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/url_launcher_ios.framework/url_launcher_ios
+        0x106aa4000 -         0x1089c3fff Flutter arm64  <4c4c44af55553144a1fc068cb64d25c1> /private/var/containers/Bundle/Application/079EC4A0-7294-4B9D-A043-028576FDBC5C/Runner.app/Frameworks/Flutter.framework/Flutter
+        0x10d9a8000 -         0x10d9b3fff libobjc-trampolines.dylib arm64e  <a068c18d51c33c9aa2875c9c122ada7d> /private/preboot/Cryptexes/OS/usr/lib/libobjc-trampolines.dylib
+        0x19379a000 -         0x193838ad7 dyld arm64e  <ef27e3863cff3752b152d96a0aa9effd> /usr/lib/dyld
+        0x193de0000 -         0x194c267df Foundation arm64e  <218da4dc727a3341b59e8fdb39a2d7c4> /System/Library/Frameworks/Foundation.framework/Foundation
+        0x19676a000 -         0x196cee5ff CoreFoundation arm64e  <b4a0233bf37d3ef6a977e4f36199c5a4> /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+        0x19c0ad000 -         0x19e4fb0df UIKitCore arm64e  <a0e1cefbfd0136f9b82351b092e4dbc6> /System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore
+        0x1aa8e7000 -         0x1aa938f9f libxpc.dylib arm64e  <d5e4a802dd5d31dd917967cb206ae3c2> /usr/lib/system/libxpc.dylib
+        0x1adea5000 -         0x1adf2787f BoardServices arm64e  <b63514f9371f33f083cc23fb457adf2d> /System/Library/PrivateFrameworks/BoardServices.framework/BoardServices
+        0x1b643f000 -         0x1b65230ff FrontBoardServices arm64e  <97bbb5bcaf243231bf5e3e28db22d4a6> /System/Library/PrivateFrameworks/FrontBoardServices.framework/FrontBoardServices
+        0x1bb13c000 -         0x1bb15c1df libsystem_trace.dylib arm64e  <bbda7e9a72d133f59ea806814ca0a397> /usr/lib/system/libsystem_trace.dylib
+        0x1cebc7000 -         0x1cec0d25f libdispatch.dylib arm64e  <6a1b4fabb32633738bab8e8464c68c66> /usr/lib/system/libdispatch.dylib
+        0x1f27d1000 -         0x1f27dd44f libsystem_pthread.dylib arm64e  <6e1be86b581a306790653412103e1df4> /usr/lib/system/libsystem_pthread.dylib
+        0x2373af000 -         0x2373b77ff GraphicsServices arm64e  <3688150f0fff38a4914910b3c47b53b1> /System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices
+        0x240485000 -         0x2404bfd2b libsystem_kernel.dylib arm64e  <ff136c45738b3f6e82e57340e51a1478> /usr/lib/system/libsystem_kernel.dylib
+
+EOF

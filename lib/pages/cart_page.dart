@@ -4,6 +4,7 @@ import 'package:bimmerwise_connect/services/theme.dart';
 import 'package:bimmerwise_connect/services/cart_service.dart';
 import 'package:bimmerwise_connect/services/auth_service.dart';
 import 'package:bimmerwise_connect/models/cart_item_model.dart';
+import 'package:lottie/lottie.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -144,7 +145,7 @@ class _CartPageState extends State<CartPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.white),
+                        Lottie.asset('assets/documents/shopping-cart.json', width: 125, height: 125),
                         const SizedBox(height: 16),
                         const Text(
                           'Your cart is empty',

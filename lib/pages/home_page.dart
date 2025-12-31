@@ -15,6 +15,8 @@ import 'package:bimmerwise_connect/models/user_model.dart';
 import 'package:bimmerwise_connect/models/vehicle_model.dart';
 import 'package:bimmerwise_connect/models/service_record_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:lottie/lottie.dart';
+import 'package:bimmerwise_connect/widgets/safe_lottie.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -890,10 +892,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                               child: Stack(
                                 clipBehavior: Clip.none,
                                 children: [
-                                  const Icon(
-                                    Icons.notifications,
-                                    color: Colors.white,
-                                    size: 24,
+                                  SafeLottie(
+                                    assetPath: 'assets/documents/notification.json',
+                                    width: 29,
+                                    height: 29,
+                                    fallbackIcon: Icons.notifications,
+                                    fallbackColor: Colors.white,
                                   ),
                                   if (_unreadNotificationCount > 0)
                                     Positioned(
@@ -946,10 +950,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                               child: Stack(
                                 clipBehavior: Clip.none,
                                 children: [
-                                  const Icon(
-                                    Icons.shopping_cart,
-                                    color: Colors.white,
-                                    size: 24,
+                                  SafeLottie(
+                                    assetPath: 'assets/documents/shopping-cart.json',
+                                    width: 37,
+                                    height: 37,
+                                    fallbackIcon: Icons.shopping_cart,
+                                    fallbackColor: Colors.white,
                                   ),
                                   if (_cartItemCount > 0)
                                     Positioned(
@@ -1073,7 +1079,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                             value: 'my_profile',
                             child: Row(
                               children: [
-                                Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                                SafeLottie(
+                                  assetPath: 'assets/documents/profile2.json',
+                                  width: 24,
+                                  height: 24,
+                                  fallbackIcon: Icons.person,
+                                  fallbackColor: Theme.of(context).colorScheme.primary,
+                                ),
                                 const SizedBox(width: 12),
                                 const Text('My Profile'),
                               ],
@@ -1152,10 +1164,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                                 backgroundColor: Colors.white,
                                 backgroundImage: _getProfileImage(),
                                 child: _loggedInUser!.profilePicture == null
-                                    ? const Icon(
-                                        Icons.person,
-                                        size: 22,
-                                        color: Color(0xFF001E50),
+                                    ? ClipOval(
+                                        child: SafeLottie(
+                                          assetPath: 'assets/documents/profile2.json',
+                                          width: 44,
+                                          height: 44,
+                                          fit: BoxFit.cover,
+                                          fallbackIcon: Icons.person,
+                                          fallbackColor: Theme.of(context).colorScheme.primary,
+                                        ),
                                       )
                                     : null,
                               ),
@@ -1386,20 +1403,108 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                       Row(
                         children: [
                           Expanded(
-                            child: BMWServiceCard(
-                              icon: Icons.bolt,
-                              title: 'High Voltage\nServices',
-                              subtitle: '',
+                            child: InkWell(
                               onTap: () => context.push('/service-selection?category=bookin'),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                height: 120,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF001E50).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: SafeLottie(
+                                        assetPath: 'assets/documents/electric-car.json',
+                                        width: 47,
+                                        height: 47,
+                                        fallbackIcon: Icons.electric_car,
+                                        fallbackColor: const Color(0xFF001E50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'High Voltage',
+                                        style: context.textStyles.bodyMedium?.bold.withColor(
+                                          const Color(0xFF001E50),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: BMWServiceCard(
-                              icon: Icons.build_circle,
-                              title: 'Car Service',
-                              subtitle: '',
+                            child: InkWell(
                               onTap: () => context.push('/service-selection?category=service'),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                height: 120,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF001E50).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: SafeLottie(
+                                        assetPath: 'assets/documents/car-oil.json',
+                                        width: 47,
+                                        height: 47,
+                                        fallbackIcon: Icons.build,
+                                        fallbackColor: const Color(0xFF001E50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Car Service',
+                                        style: context.textStyles.bodyMedium?.bold.withColor(
+                                          const Color(0xFF001E50),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -1408,20 +1513,108 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                       Row(
                         children: [
                           Expanded(
-                            child: BMWServiceCard(
-                              icon: Icons.computer,
-                              title: 'Coding',
-                              subtitle: '',
+                            child: InkWell(
                               onTap: () => context.push('/service-selection?category=coding'),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                height: 120,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF001E50).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: SafeLottie(
+                                        assetPath: 'assets/documents/software.json',
+                                        width: 47,
+                                        height: 47,
+                                        fallbackIcon: Icons.code,
+                                        fallbackColor: const Color(0xFF001E50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Coding',
+                                        style: context.textStyles.bodyMedium?.bold.withColor(
+                                          const Color(0xFF001E50),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: BMWServiceCard(
-                              icon: Icons.fact_check,
-                              title: 'Vehicle Health\nCheck',
-                              subtitle: '',
+                            child: InkWell(
                               onTap: () => context.push('/service-selection?category=healthcheck'),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                height: 120,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF001E50).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: SafeLottie(
+                                        assetPath: 'assets/documents/file.json',
+                                        width: 47,
+                                        height: 47,
+                                        fallbackIcon: Icons.description,
+                                        fallbackColor: const Color(0xFF001E50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Vehicle Health\nCheck',
+                                        style: context.textStyles.bodyMedium?.bold.withColor(
+                                          const Color(0xFF001E50),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -1430,24 +1623,112 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                       Row(
                         children: [
                           Expanded(
-                            child: BMWServiceCard(
-                              icon: Icons.directions_car_filled,
-                              title: 'Cars for Sale',
-                              subtitle: '',
+                            child: InkWell(
                               onTap: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Coming soon!')),
                                 );
                               },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                height: 120,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF001E50).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: SafeLottie(
+                                        assetPath: 'assets/documents/buy-a-car.json',
+                                        width: 47,
+                                        height: 47,
+                                        fallbackIcon: Icons.directions_car,
+                                        fallbackColor: const Color(0xFF001E50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Cars for Sale',
+                                        style: context.textStyles.bodyMedium?.bold.withColor(
+                                          const Color(0xFF001E50),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: BMWServiceCard(
-                              icon: Icons.shopping_bag,
-                              title: 'Products',
-                              subtitle: '',
+                            child: InkWell(
                               onTap: () => context.push('/products'),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                height: 120,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF001E50).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: SafeLottie(
+                                        assetPath: 'assets/documents/recommendation.json',
+                                        width: 47,
+                                        height: 47,
+                                        fallbackIcon: Icons.shopping_bag,
+                                        fallbackColor: const Color(0xFF001E50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Products',
+                                        style: context.textStyles.bodyMedium?.bold.withColor(
+                                          const Color(0xFF001E50),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -1658,39 +1939,55 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                         Row(
                           children: [
                             Expanded(
-                              child: ElevatedButton(
-                                onPressed: () => context.push('/register'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFF001E50),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
+                              child: GestureDetector(
+                                onTap: () => context.push('/register'),
+                                child: Container(
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
                                     borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFF3B9DD8),
+                                      width: 2,
+                                    ),
                                   ),
-                                  elevation: 2,
-                                ),
-                                child: Text(
-                                  'REGISTER',
-                                  style: context.textStyles.titleMedium?.bold,
+                                  child: const Center(
+                                    child: Text(
+                                      'Register',
+                                      style: TextStyle(
+                                        color: Color(0xFF001E50),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: ElevatedButton(
-                                onPressed: () => context.push('/login?service=&category='),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF3B9DD8),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
+                              child: GestureDetector(
+                                onTap: () => context.push('/login?service=&category='),
+                                child: Container(
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3B9DD8),
                                     borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
                                   ),
-                                  elevation: 2,
-                                ),
-                                child: Text(
-                                  'LOG IN',
-                                  style: context.textStyles.titleMedium?.bold,
+                                  child: const Center(
+                                    child: Text(
+                                      'Login',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1857,6 +2154,51 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
               );
               
               if (confirm == true) {
+                // Show animated success dialog
+                if (context.mounted) {
+                  await showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SafeLottie(
+                            assetPath: 'assets/documents/Check_Mark_-_Success.json',
+                            width: 150,
+                            height: 150,
+                            repeat: false,
+                            fallbackIcon: Icons.check_circle,
+                            fallbackColor: Colors.green,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Vehicle Collected!',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF001E50),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Thank you for choosing BIMMERWISE',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
                 final updatedService = booking.copyWith(
                   status: 'Collected',
                   updatedAt: DateTime.now(),
@@ -1864,10 +2206,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                 await ServiceRecordService().updateRecord(updatedService);
                 
                 await _loadActiveService(_loggedInUser!.id);
+                
+                // Close the success dialog
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${booking.serviceType} collection confirmed!')),
-                  );
+                  Navigator.of(context).pop();
                 }
               }
               return false;
@@ -2054,6 +2396,51 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                   );
                   
                   if (confirm == true) {
+                    // Show animated success dialog
+                    if (context.mounted) {
+                      await showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SafeLottie(
+                                assetPath: 'assets/documents/Check_Mark_-_Success.json',
+                                width: 150,
+                                height: 150,
+                                repeat: false,
+                                fallbackIcon: Icons.check_circle,
+                                fallbackColor: Colors.green,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Vehicle Collected!',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF001E50),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Thank you for choosing BIMMERWISE',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    
                     final updatedService = booking.copyWith(
                       status: 'Collected',
                       updatedAt: DateTime.now(),
@@ -2061,10 +2448,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
                     await ServiceRecordService().updateRecord(updatedService);
                     
                     await _loadActiveService(_loggedInUser!.id);
+                    
+                    // Close the success dialog
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('${booking.serviceType} collection confirmed!')),
-                      );
+                      Navigator.of(context).pop();
                     }
                   }
                   return false;
