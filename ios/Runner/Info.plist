@@ -56,10 +56,14 @@
 	<string>Light</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>BIMMERWISE would like to send you personalized service notifications and updates.</string>
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>BIMMERWISE needs permission to send you notifications about your bookings, service updates, and important account information.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>BIMMERWISE needs access to your photo library to allow you to upload vehicle photos and service documentation.</string>
+	<key>NSUserNotificationsAlertUsageDescription</key>
+	<string>BIMMERWISE uses notifications to keep you informed about bookings, service updates, and important account information.</string>
+	<key>NSUserNotificationsSoundUsageDescription</key>
+	<string>Notification sounds are used for important updates.</string>
+	<key>NSUserNotificationsBadgeUsageDescription</key>
+	<string>App icon badges indicate unread updates.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

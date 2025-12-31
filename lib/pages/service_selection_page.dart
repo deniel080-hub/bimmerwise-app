@@ -335,6 +335,21 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
             'priceNote': 'Including coding',
             'icon': Icons.upgrade,
           },
+          {
+            'title': 'Brake Fluid Service',
+            'description': 'Complete brake fluid replacement to ensure optimal braking performance',
+            'features': [
+              'Complete brake fluid flush',
+              'High-quality DOT 4 brake fluid',
+              'Brake system inspection',
+              'Bleeding of all brake lines',
+              'Brake performance test',
+              'Recommended every 2 years',
+            ],
+            'price': '€150',
+            'priceNote': 'Standard service',
+            'icon': Icons.oil_barrel,
+          },
         ];
       case 'coding':
         return [
