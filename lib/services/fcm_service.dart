@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:bimmerwise_connect/services/notification_service.dart';
 
-/// FCM Service for handling push notifications
-/// iOS-SAFE: No local notifications plugin to prevent crashes
+/// FCM Service - iOS-SAFE implementation
 class FCMService {
   static final FCMService _instance = FCMService._internal();
   factory FCMService() => _instance;
@@ -14,223 +14,78 @@ class FCMService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  bool _isInitialized = false;
+  bool _done = false;
 
-  /// Request FCM permissions after first frame is rendered
-  /// Call this from postFrameCallback to ensure UI is ready
-  void requestPermissionsAfterFirstFrame() {
-    // Fire and forget - don't await, don't block
-    _fcm.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    ).timeout(const Duration(seconds: 10)).then((settings) {
-      debugPrint('✅ FCM Permission status: ${settings.authorizationStatus}');
-    }).catchError((e, stackTrace) {
-      debugPrint('⚠️ Error requesting FCM permissions: $e');
-      // Don't crash - just log
-      return null;
-    });
-  }
-
-  /// Initialize FCM WITHOUT requesting permissions (Samsung-safe - no local notifications)
-  /// Permissions should be requested separately after first frame using postFrameCallback
-  Future<void> initialize() async {
-    if (_isInitialized) {
-      debugPrint('⚠️ FCM already initialized, skipping');
-      return;
-    }
+  /// ✅ iOS-SAFE initialization - call this AFTER first frame with 800ms delay
+  Future<void> safeInit() async {
+    if (_done) return;
 
     try {
-      debugPrint('🚀 Initializing FCM Service (Samsung-safe mode)...');
-      debugPrint('📌 Note: Permissions will be requested after first frame via postFrameCallback');
-    } catch (e, stackTrace) {
-      debugPrint('⚠️ Error during FCM initialization: $e');
-      debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-    }
+      final messaging = FirebaseMessaging.instance;
 
-    try {
-      // Handle foreground messages (when app is open) - SIMPLIFIED & SAMSUNG-SAFE
-      try {
-        FirebaseMessaging.onMessage.listen(
-          (message) {
-            debugPrint('📨 Foreground message: ${message.notification?.title}');
-            // Store in Firestore only - no local notifications to avoid Samsung crashes
-          },
-          onError: (error, stackTrace) {
-            debugPrint('⚠️ Foreground message error: $error');
-            // Don't crash - just log
-          },
-          cancelOnError: false, // Keep stream active even after errors
+      // ✅ Request iOS permissions FIRST (before any other FCM calls)
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
         );
-      } catch (e, stackTrace) {
-        debugPrint('⚠️ Error setting up foreground listener: $e');
-        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
       }
 
-      // Handle background message taps - SAMSUNG-SAFE
-      try {
-        FirebaseMessaging.onMessageOpenedApp.listen(
-          _handleBackgroundMessageTap,
-          onError: (error, stackTrace) {
-            debugPrint('⚠️ Background tap error: $error');
-            // Don't crash - just log
-          },
-          cancelOnError: false,
-        );
-      } catch (e, stackTrace) {
-        debugPrint('⚠️ Error setting up background listener: $e');
-        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-      }
+      // ✅ Initialize NotificationService (iOS-safe, no Android channel logic)
+      await NotificationService().init();
 
-      // Check if app was opened from a terminated state notification - SAMSUNG-SAFE
-      try {
-        final initialMessage = await _fcm.getInitialMessage().timeout(const Duration(seconds: 5));
-        if (initialMessage != null) {
-          debugPrint('📨 App opened from notification');
-          _handleBackgroundMessageTap(initialMessage);
-        }
-      } catch (e, stackTrace) {
-        debugPrint('⚠️ Error getting initial message: $e');
-        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-      }
+      // ✅ Get FCM token AFTER permissions and init
+      final token = await messaging.getToken();
+      debugPrint('FCM token: $token');
 
-      // Listen for token refresh - SAMSUNG-SAFE
-      try {
-        _fcm.onTokenRefresh.listen(
-          (newToken) {
-            debugPrint('🔄 FCM token refreshed');
-          },
-          onError: (error, stackTrace) {
-            debugPrint('⚠️ Token refresh error: $error');
-            // Don't crash - just log
-          },
-          cancelOnError: false,
-        );
-      } catch (e, stackTrace) {
-        debugPrint('⚠️ Error setting up token refresh: $e');
-        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-      }
+      // ✅ Set up foreground message listener
+      FirebaseMessaging.onMessage.listen((message) {
+        NotificationService().show(message);
+      });
 
-      _isInitialized = true;
-      debugPrint('✅ FCM Service initialized (Samsung-safe mode)');
-    } catch (e, stackTrace) {
-      debugPrint('❌ FCM initialization error: $e');
-      debugPrint('❌ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-      // ALWAYS mark as initialized to prevent crash loops on Samsung devices
-      _isInitialized = true;
+      _done = true;
+    } catch (e) {
+      debugPrint('FCM init failed: $e');
     }
   }
 
-  /// Get FCM token for this device (simplified - no platform-specific checks)
+  /// Get FCM token
   Future<String?> getToken() async {
     try {
-      // On web, FCM might not be available
       if (kIsWeb) {
-        try {
-          // Web push requires VAPID key - skip for now if not configured
-          debugPrint('⚠️ Web FCM not configured (VAPID key required)');
-          return null;
-        } catch (e) {
-          debugPrint('⚠️ FCM token not available on web: $e');
-          return null;
-        }
+        debugPrint('⚠️ Web FCM not configured');
+        return null;
       }
       
-      // Mobile (iOS and Android) - let Firebase SDK handle platform differences
-      String? token;
-      for (int attempt = 1; attempt <= 3; attempt++) {
-        try {
-          token = await _fcm.getToken().timeout(const Duration(seconds: 8));
-          if (token != null) {
-            debugPrint('📱 FCM Token obtained (attempt $attempt): ${token.substring(0, min(20, token.length))}...');
-            return token;
-          }
-          debugPrint('⚠️ FCM token is null on attempt $attempt, retrying...');
-          await Future.delayed(Duration(seconds: attempt));
-        } catch (e) {
-          debugPrint('⚠️ Error getting FCM token (attempt $attempt): $e');
-          if (attempt == 3) {
-            debugPrint('❌ Failed to get FCM token after 3 attempts');
-            return null;
-          }
-          await Future.delayed(Duration(seconds: attempt));
-        }
+      final token = await _fcm.getToken();
+      if (token != null) {
+        debugPrint('📱 FCM Token: ${token.substring(0, min(20, token.length))}...');
       }
-      return null;
+      return token;
     } catch (e) {
-      debugPrint('❌ Error getting FCM token: $e');
+      debugPrint('Error getting FCM token: $e');
       return null;
     }
   }
 
-  /// Save FCM token to Firestore user document
+  /// Save FCM token to Firestore
   Future<void> saveTokenToUser(String userId) async {
     try {
-      debugPrint('🔑 Attempting to get FCM token for user: $userId');
-      
-      final token = await getToken().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('⏱️ FCM token retrieval timeout for user: $userId');
-          return null;
-        },
-      );
-      
+      final token = await getToken();
       if (token != null && token.isNotEmpty) {
-        debugPrint('📱 Got FCM token, saving to Firestore...');
-        
         await _firestore.collection('users').doc(userId).set({
           'fcmToken': token,
           'lastTokenUpdate': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true)).timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            debugPrint('⏱️ Firestore write timeout when saving FCM token');
-            throw TimeoutException('Firestore write timeout');
-          },
-        );
-        
-        debugPrint('✅ FCM token saved to user document: $userId');
-      } else {
-        debugPrint('⚠️ No FCM token available to save for user: $userId');
+        }, SetOptions(merge: true));
+        debugPrint('✅ FCM token saved');
       }
-    } on TimeoutException catch (e) {
-      debugPrint('⏱️ Timeout saving FCM token: $e');
     } catch (e) {
-      debugPrint('❌ Error saving FCM token: $e');
+      debugPrint('Error saving FCM token: $e');
     }
   }
 
-  /// Handle foreground messages (when app is open) - REMOVED to avoid Samsung crashes
-  /// Notifications are now stored in Firestore and displayed in-app only
-
-  /// Handle background message tap (when user taps notification) - SAMSUNG-SAFE
-  void _handleBackgroundMessageTap(RemoteMessage message) {
-    try {
-      debugPrint('📨 Background message tapped: ${message.notification?.title}');
-      debugPrint('   - Data: ${message.data}');
-      
-      final bookingId = message.data['bookingId'] ?? message.data['recordId'];
-      final notificationType = message.data['type'];
-      
-      debugPrint('   - Booking ID: $bookingId');
-      debugPrint('   - Type: $notificationType');
-    } catch (e, stackTrace) {
-      // CRITICAL: Never throw from notification handler - causes Samsung crash loops
-      debugPrint('❌ Error handling background message tap: $e');
-      debugPrint('❌ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-    }
-  }
-
-  /// Local notifications REMOVED to avoid iOS & Samsung crashes
-  /// All notifications are stored in Firestore and shown in-app only
-
-  /// Send notification to a specific user via FCM
+  /// Send notification to user
   Future<void> sendNotificationToUser({
     required String userId,
     required String title,
@@ -247,22 +102,19 @@ class FCMService {
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-
-      debugPrint('✅ Notification stored in Firestore for user: $userId');
-      debugPrint('   - Title: $title');
-      debugPrint('   - Message: $body');
+      debugPrint('✅ Notification stored');
     } catch (e) {
-      debugPrint('❌ Error sending notification: $e');
+      debugPrint('Error sending notification: $e');
     }
   }
 
-  /// Subscribe to topic (for broadcast notifications)
+  /// Subscribe to topic
   Future<void> subscribeToTopic(String topic) async {
     try {
       await _fcm.subscribeToTopic(topic);
       debugPrint('✅ Subscribed to topic: $topic');
     } catch (e) {
-      debugPrint('Error subscribing to topic: $e');
+      debugPrint('Error subscribing: $e');
     }
   }
 
@@ -272,18 +124,7 @@ class FCMService {
       await _fcm.unsubscribeFromTopic(topic);
       debugPrint('✅ Unsubscribed from topic: $topic');
     } catch (e) {
-      debugPrint('Error unsubscribing from topic: $e');
+      debugPrint('Error unsubscribing: $e');
     }
   }
-}
-
-/// Background message handler (must be top-level function)
-/// ULTRA-MINIMAL: No Firebase init, no async work, no conditional logic
-/// Prevents background isolate deadlock that causes black screen on iOS
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // DO NOT initialize Firebase here - already done in main()
-  // DO NOT do any async work - causes deadlock
-  // Just return immediately - no logic whatsoever
-  return;
 }

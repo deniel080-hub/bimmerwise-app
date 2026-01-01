@@ -1,11 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:bimmerwise_connect/services/fcm_service.dart';
 import 'package:bimmerwise_connect/services/user_service.dart';
 
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FCMService _fcmService = FCMService();
+
+  /// ✅ iOS-SAFE: Minimal init with no platform-specific logic
+  Future<void> init() async {
+    try {
+      // Minimal iOS-safe initialization
+      debugPrint('✅ NotificationService initialized');
+    } catch (e) {
+      debugPrint('NotificationService init error: $e');
+    }
+  }
 
   /// Get all notifications for a user from Firestore
   Future<List<AppNotification>> getNotificationsByUserId(String userId) async {
@@ -87,6 +98,14 @@ class NotificationService {
       debugPrint('❌ Stack trace: ${StackTrace.current}');
       rethrow;
     }
+  }
+
+  /// ✅ iOS-SAFE: Show notification - NO Android channel logic
+  Future<void> show(RemoteMessage message) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    // Android-only notification display logic would go here
+    // iOS handles notifications automatically via system
+    debugPrint('📨 Received message: ${message.notification?.title}');
   }
 
   /// Mark notification as read

@@ -61,7 +61,9 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 	</dict>
+	<key>NSPushNotifications</key>
+	<true/>
 </dict>
 </plist>

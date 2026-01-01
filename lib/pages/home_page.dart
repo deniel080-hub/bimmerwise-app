@@ -78,12 +78,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin, Widg
       debugPrint('⚠️ Animation controller initialization error: $e');
     }
     
-    // Delay login check to allow UI to fully initialize (helps on Samsung devices)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // ✅ iOS-SAFE: Delay FCM initialization until AFTER first frame + 800ms
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (mounted && !kIsWeb) {
+        await FCMService().safeInit();
+      }
+
       if (mounted) {
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) _checkLoginStatus();
-        });
+        _checkLoginStatus();
       }
     });
   }
