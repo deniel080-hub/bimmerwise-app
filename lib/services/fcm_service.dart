@@ -16,7 +16,29 @@ class FCMService {
 
   bool _isInitialized = false;
 
-  /// Initialize FCM and request permissions (Samsung-safe - no local notifications)
+  /// Request FCM permissions after first frame is rendered
+  /// Call this from postFrameCallback to ensure UI is ready
+  void requestPermissionsAfterFirstFrame() {
+    // Fire and forget - don't await, don't block
+    _fcm.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    ).timeout(const Duration(seconds: 10)).then((settings) {
+      debugPrint('✅ FCM Permission status: ${settings.authorizationStatus}');
+    }).catchError((e, stackTrace) {
+      debugPrint('⚠️ Error requesting FCM permissions: $e');
+      // Don't crash - just log
+      return null;
+    });
+  }
+
+  /// Initialize FCM WITHOUT requesting permissions (Samsung-safe - no local notifications)
+  /// Permissions should be requested separately after first frame using postFrameCallback
   Future<void> initialize() async {
     if (_isInitialized) {
       debugPrint('⚠️ FCM already initialized, skipping');
@@ -25,26 +47,13 @@ class FCMService {
 
     try {
       debugPrint('🚀 Initializing FCM Service (Samsung-safe mode)...');
-      
-      // Request FCM permissions (this handles both iOS and Android properly)
-      try {
-        final settings = await _fcm.requestPermission(
-          alert: true,
-          announcement: false,
-          badge: true,
-          carPlay: false,
-          criticalAlert: false,
-          provisional: false,
-          sound: true,
-        ).timeout(const Duration(seconds: 10));
-        
-        debugPrint('✅ FCM Permission status: ${settings.authorizationStatus}');
-      } catch (e, stackTrace) {
-        debugPrint('⚠️ Error requesting FCM permissions (Samsung-safe): $e');
-        debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-        // Continue anyway - permissions might already be granted
-      }
+      debugPrint('📌 Note: Permissions will be requested after first frame via postFrameCallback');
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ Error during FCM initialization: $e');
+      debugPrint('⚠️ Stack trace: ${stackTrace.toString().split('\n').take(3).join('\n')}');
+    }
 
+    try {
       // Handle foreground messages (when app is open) - SIMPLIFIED & SAMSUNG-SAFE
       try {
         FirebaseMessaging.onMessage.listen(
@@ -269,7 +278,12 @@ class FCMService {
 }
 
 /// Background message handler (must be top-level function)
+/// ULTRA-MINIMAL: No Firebase init, no async work, no conditional logic
+/// Prevents background isolate deadlock that causes black screen on iOS
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('📨 Background message received: ${message.notification?.title}');
+  // DO NOT initialize Firebase here - already done in main()
+  // DO NOT do any async work - causes deadlock
+  // Just return immediately - no logic whatsoever
+  return;
 }

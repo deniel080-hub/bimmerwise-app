@@ -5,40 +5,54 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
 import 'package:bimmerwise_connect/services/theme.dart';
 import 'package:bimmerwise_connect/nav.dart';
 import 'package:bimmerwise_connect/firebase_options.dart';
 import 'package:bimmerwise_connect/services/fcm_service.dart';
 
-/// Background message handler (must be top-level function)
-/// SAMSUNG-SAFE: Wrapped in comprehensive error handling to prevent crash loops
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    debugPrint('📨 Background message: ${message.notification?.title}');
-  } catch (e, stackTrace) {
-    // CRITICAL: Never throw from background handler - causes crash loops on Samsung
-    debugPrint('❌ Background handler error: $e');
-    debugPrint('❌ Stack trace: $stackTrace');
-  }
-}
-
 /// Main entry point for the application
 ///
 /// This sets up:
-/// - Flutter binding initialization
-/// - Firebase initialization with error handling
-/// - Firebase Cloud Messaging (FCM) for push notifications
-/// - go_router navigation
-/// - Material 3 theming with light/dark modes
-void main() async {
-  // Wrap everything in error handling for better crash reporting
-  runZonedGuarded(() async {
-    // CRITICAL: Initialize Flutter bindings first (iOS-safe)
-    WidgetsFlutterBinding.ensureInitialized();
+/// - Flutter binding initialization (synchronous)
+/// - Material app starts immediately (no blocking)
+/// - Firebase initialization happens AFTER first frame (async)
+void main() {
+  // CRITICAL: Initialize Flutter bindings first
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Start the app immediately (no await, no blocking)
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  GoRouter? _router;
+  bool _appReady = false;
+
+  @override
+  void initState() {
+    super.initState();
     
-    // Initialize Firebase with comprehensive error handling (iOS-safe)
+    // Initialize Firebase asynchronously (non-blocking)
+    _initAsync();
+    
+    // Request FCM permissions AFTER first frame is rendered
+    if (!kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        debugPrint('🎯 First frame rendered, requesting FCM permissions...');
+        FCMService().requestPermissionsAfterFirstFrame();
+      });
+    }
+  }
+  
+  Future<void> _initAsync() async {
     try {
       debugPrint('🚀 Starting Firebase initialization...');
       await Firebase.initializeApp(
@@ -49,15 +63,13 @@ void main() async {
       // Configure Firestore with platform-specific settings
       if (!kIsWeb) {
         try {
-          // iOS/Android: Enable offline persistence with cache limit
           FirebaseFirestore.instance.settings = const Settings(
             persistenceEnabled: true,
-            cacheSizeBytes: 100 * 1024 * 1024, // 100MB limit
+            cacheSizeBytes: 100 * 1024 * 1024, // 100MB
           );
-          debugPrint('✅ Firestore persistence enabled (mobile)');
+          debugPrint('✅ Firestore persistence enabled');
         } catch (e) {
           debugPrint('⚠️ Firestore settings error: $e');
-          // Continue without persistence if it fails
         }
       } else {
         debugPrint('✅ Firestore configured for web');
@@ -65,70 +77,70 @@ void main() async {
       
       // Set up background message handler
       try {
-        FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+        FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
         debugPrint('✅ Background message handler registered');
       } catch (e) {
         debugPrint('⚠️ Background handler error: $e');
       }
       
-      // Initialize FCM Service - delayed start for stability (iOS-safe)
+      // Initialize FCM Service (without permissions yet)
       if (!kIsWeb) {
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          FCMService().initialize().timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              debugPrint('⚠️ FCM timeout');
-            },
-          ).catchError((e) {
-            debugPrint('⚠️ FCM error: $e');
-          }, test: (_) => true);
+        FCMService().initialize().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('⚠️ FCM timeout');
+            return null;
+          },
+        ).catchError((e) {
+          debugPrint('⚠️ FCM error: $e');
+          return null;
         });
       }
+      
+      // Create router ONLY after Firebase initialization completes
+      setState(() {
+        _router = AppRouter.createRouter();
+        _appReady = true;
+      });
+      debugPrint('🎉 Router created and app ready');
     } catch (e, stackTrace) {
       debugPrint('❌ Firebase initialization error: $e');
       debugPrint('❌ Stack: $stackTrace');
       debugPrint('⚠️ App continues without Firebase');
+      
+      // Create router even if Firebase fails (graceful degradation)
+      setState(() {
+        _router = AppRouter.createRouter();
+        _appReady = true;
+      });
     }
-    
-    // Initialize the app
-    runApp(const MyApp());
-  }, (error, stackTrace) {
-    // Catch any uncaught errors in the app
-    debugPrint('💥 Uncaught error: $error');
-    debugPrint('💥 Stack trace: $stackTrace');
-  });
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  }
 
   @override
   Widget build(BuildContext context) {
-    // MultiProvider wraps the app to provide state to all widgets
-    // As you extend the app, use MultiProvider to wrap the app
-    // and provide state to all widgets
-    // Example:
-    // return MultiProvider(
-    //   providers: [
-    //     ChangeNotifierProvider(create: (_) => ExampleProvider()),
-    //   ],
-    //   child: MaterialApp.router(
-    //     title: 'Dreamflow Starter',
-    //     debugShowCheckedModeBanner: false,
-    //     routerConfig: AppRouter.router,
-    //   ),
-    // );
+    // Show loading screen until Firebase initialization completes
+    if (!_appReady || _router == null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: ThemeMode.system,
+        home: const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    // Only show router after Firebase is ready
     return MaterialApp.router(
       title: 'BIMMERWISE',
       debugShowCheckedModeBanner: false,
-
-      // Theme configuration
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: ThemeMode.system,
-
-      // Use context.go() or context.push() to navigate to the routes.
-      routerConfig: AppRouter.router,
+      routerConfig: _router!,
     );
   }
 }

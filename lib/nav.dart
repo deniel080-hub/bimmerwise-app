@@ -38,9 +38,10 @@ import 'package:bimmerwise_connect/pages/xhp_remap_booking_page.dart';
 /// 3. Navigate using context.go() or context.push()
 /// 4. Use context.pop() to go back.
 class AppRouter {
-  static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.home,
-    routes: [
+  static GoRouter createRouter() {
+    return GoRouter(
+      initialLocation: AppRoutes.home,
+      routes: [
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
@@ -275,7 +276,8 @@ class AppRouter {
         ),
       ),
     ],
-  );
+    );
+  }
 }
 
 /// Route path constants

@@ -7,16 +7,10 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // CRITICAL FIX: Call super.application() FIRST to initialize Flutter engine
-    // This prevents path_provider_foundation crash during plugin registration
-    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    
-    // Now register plugins after Flutter engine is ready
+    // Standard Flutter initialization - super.application() handles plugin registration
+    // Firebase initialization is managed in Dart (main.dart)
     GeneratedPluginRegistrant.register(with: self)
-    
-    // Note: FirebaseAppDelegateProxyEnabled is set to false in Info.plist, 
-    // so we manage Firebase initialization in Dart (main.dart)
-    return result
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   
   // Handle push notifications registration
