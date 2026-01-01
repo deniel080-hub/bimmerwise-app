@@ -1,7 +1,7 @@
 name: bimmerwise_connect
 description: "Experience seamless BMW care with BIMMERWISE: a personalized booking app where you can register your vehicle, track service history, and schedule your next appointment with just a tap."
 publish_to: "none"
-version: 1.0.40+55
+version: 1.0.41+56
 
 environment:
   sdk: ^3.6.0
@@ -53,13 +53,8 @@ flutter:
 
 flutter_launcher_icons:
   android: true
-  ios: true
   image_path: assets/images/bimmerwise2.png
-  remove_alpha_ios: true
   min_sdk_android: 21
-  ios_config:
-    generate: true
-    image_path: assets/images/bimmerwise2.png
   web:
     generate: true
     image_path: assets/images/bimmerwise2.png
