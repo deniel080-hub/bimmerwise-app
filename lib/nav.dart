@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:bimmerwise_connect/pages/home_page.dart';
 import 'package:bimmerwise_connect/pages/customers_page.dart';
@@ -38,10 +39,33 @@ import 'package:bimmerwise_connect/pages/xhp_remap_booking_page.dart';
 /// 3. Navigate using context.go() or context.push()
 /// 4. Use context.pop() to go back.
 class AppRouter {
-  static GoRouter createRouter() {
+  static GoRouter createRouter(ValueNotifier<bool> isInitializingNotifier) {
     return GoRouter(
-      initialLocation: AppRoutes.home,
+      initialLocation: AppRoutes.loading,
+      refreshListenable: isInitializingNotifier,
+      redirect: (context, state) {
+        final isInitializing = isInitializingNotifier.value;
+        final isOnLoadingPage = state.matchedLocation == AppRoutes.loading;
+        
+        // Redirect away from loading page once initialization completes
+        if (!isInitializing && isOnLoadingPage) {
+          return AppRoutes.home;
+        }
+        
+        return null; // No redirect needed
+      },
       routes: [
+      GoRoute(
+        path: AppRoutes.loading,
+        name: 'loading',
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        ),
+      ),
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
@@ -283,6 +307,7 @@ class AppRouter {
 /// Route path constants
 /// Use these instead of hard-coding route strings
 class AppRoutes {
+  static const String loading = '/loading';
   static const String home = '/';
   static const String customers = '/customers';
   static const String customer = '/customer';
